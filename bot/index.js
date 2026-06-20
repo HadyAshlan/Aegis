@@ -1,86 +1,99 @@
-// Aegis Bot v0.1 — terima pesan Hady di Telegram, simpan ke vault GitHub
-// Env vars wajib: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO
+// Aegis Bot v0.2 — capture + smart reminder
+// Env wajib: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+//            GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GROQ_API_KEY
 
 import { Telegraf } from "telegraf";
-import { Octokit } from "@octokit/rest";
+import { writeFile } from "./lib/store.js";
+import { parseSchedule } from "./lib/groq.js";
+import { addReminder, dueReminders, markNotified } from "./lib/reminders.js";
+import { nowJakarta, formatFriendly } from "./lib/time.js";
 
-const {
-  TELEGRAM_BOT_TOKEN,
-  TELEGRAM_CHAT_ID,
-  GITHUB_TOKEN,
-  GITHUB_OWNER,
-  GITHUB_REPO,
-  GITHUB_BRANCH = "main",
-} = process.env;
-
-for (const [k, v] of Object.entries({
-  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO,
-})) {
-  if (!v) { console.error(`Missing env: ${k}`); process.exit(1); }
+const REQUIRED = [
+  "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+  "GITHUB_TOKEN", "GITHUB_OWNER", "GITHUB_REPO", "GROQ_API_KEY",
+];
+for (const k of REQUIRED) {
+  if (!process.env[k]) { console.error(`Missing env: ${k}`); process.exit(1); }
 }
 
-const bot = new Telegraf(TELEGRAM_BOT_TOKEN);
-const gh = new Octokit({ auth: GITHUB_TOKEN });
-const OWNER_ID = String(TELEGRAM_CHAT_ID);
-
-// Jakarta time helper
-const tsJakarta = () => {
-  const fmt = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Asia/Jakarta",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false,
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
-  return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}${parts.minute}${parts.second}`,
-    iso: `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} WIB`,
-  };
-};
+const OWNER_ID = String(process.env.TELEGRAM_CHAT_ID);
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 const saveToInbox = async (text) => {
-  const { date, time, iso } = tsJakarta();
+  const { date, time, iso } = nowJakarta();
   const path = `00-INBOX/${date}-${time}.md`;
   const body = `---\ncreated: ${iso}\nsource: telegram\n---\n\n${text}\n`;
-  const content = Buffer.from(body, "utf-8").toString("base64");
-  await gh.repos.createOrUpdateFileContents({
-    owner: GITHUB_OWNER,
-    repo: GITHUB_REPO,
-    path,
-    message: `inbox: ${date}-${time}`,
-    content,
-    branch: GITHUB_BRANCH,
-  });
+  await writeFile(path, body, `inbox: ${date}-${time}`);
   return path;
 };
 
-// Reject siapa pun yang bukan Hady
+// Guard: hanya Hady yang boleh
 bot.use(async (ctx, next) => {
   if (String(ctx.from?.id) !== OWNER_ID) {
-    console.warn(`Blocked unauthorized user: ${ctx.from?.id} (${ctx.from?.username})`);
+    console.warn(`Blocked: ${ctx.from?.id} (${ctx.from?.username})`);
     return;
   }
   return next();
 });
 
-bot.start((ctx) => ctx.reply("✅ Aegis aktif. Kirim pesan apa pun — saya catat ke vault."));
+bot.start((ctx) => ctx.reply(
+  "✅ Aegis aktif.\n\n" +
+  "Kirim pesan apa pun → saya catat ke vault.\n" +
+  "Kalau ada tanggal/waktu → otomatis saya jadwalkan pengingat."
+));
 
 bot.command("ping", (ctx) => ctx.reply("pong"));
 
 bot.on("text", async (ctx) => {
+  const text = ctx.message.text.trim();
   try {
-    const path = await saveToInbox(ctx.message.text);
+    // Coba parse jadwal dulu
+    const parsed = await parseSchedule(text);
+
+    if (parsed.has_schedule && parsed.datetime_iso && parsed.event) {
+      const { id, friendly } = await addReminder({
+        datetime_iso: parsed.datetime_iso,
+        event: parsed.event,
+        source: text,
+      });
+      await ctx.reply(`⏰ Pengingat dijadwalkan\n📝 ${parsed.event}\n📅 ${friendly}\n🔖 ID: ${id}`);
+      return;
+    }
+
+    // Bukan jadwal → catat ke inbox biasa
+    const path = await saveToInbox(text);
     await ctx.reply(`✅ Tercatat → ${path}`);
   } catch (err) {
-    console.error("saveToInbox error:", err.message);
-    await ctx.reply(`❌ Gagal simpan: ${err.message}`);
+    console.error("handle text error:", err);
+    await ctx.reply(`❌ Gagal: ${err.message}`);
   }
 });
 
-bot.catch((err) => console.error("Bot error:", err));
+// Scheduler: cek reminders tiap 60 detik
+const checkLoop = async () => {
+  try {
+    const due = await dueReminders();
+    if (due.length === 0) return;
+    const ids = [];
+    for (const r of due) {
+      await bot.telegram.sendMessage(
+        OWNER_ID,
+        `🔔 Pengingat\n📝 ${r.event}\n📅 ${formatFriendly(r.datetime_iso)}\n\n_Pesan asli:_\n${r.source}`,
+        { parse_mode: "Markdown" }
+      );
+      ids.push(r.id);
+    }
+    await markNotified(ids);
+  } catch (err) {
+    console.error("checkLoop error:", err.message);
+  }
+};
 
-bot.launch().then(() => console.log("Aegis bot running"));
+setInterval(checkLoop, 60_000);
+setTimeout(checkLoop, 5_000); // cek sekali di awal
+
+bot.catch((err) => console.error("Bot error:", err));
+bot.launch().then(() => console.log("Aegis bot v0.2 running"));
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
