@@ -34,3 +34,19 @@ export const markNotified = async (ids) => {
   }
   if (changed > 0) await save(data, `reminder: mark notified (${changed})`);
 };
+
+export const listActive = async () => {
+  const data = await load();
+  return data.reminders
+    .filter(r => !r.notified)
+    .sort((a, b) => a.datetime_iso.localeCompare(b.datetime_iso));
+};
+
+export const removeReminder = async (id) => {
+  const data = await load();
+  const before = data.reminders.length;
+  data.reminders = data.reminders.filter(r => r.id !== id);
+  if (data.reminders.length === before) return false;
+  await save(data, `reminder: remove ${id}`);
+  return true;
+};

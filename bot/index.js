@@ -5,7 +5,7 @@
 import { Telegraf } from "telegraf";
 import { writeFile } from "./lib/store.js";
 import { parseSchedule } from "./lib/groq.js";
-import { addReminder, dueReminders, markNotified } from "./lib/reminders.js";
+import { addReminder, dueReminders, markNotified, listActive, removeReminder } from "./lib/reminders.js";
 import { nowJakarta, formatFriendly } from "./lib/time.js";
 
 const REQUIRED = [
@@ -43,6 +43,30 @@ bot.start((ctx) => ctx.reply(
 ));
 
 bot.command("ping", (ctx) => ctx.reply("pong"));
+
+bot.command("list", async (ctx) => {
+  try {
+    const items = await listActive();
+    if (items.length === 0) return ctx.reply("📭 Tidak ada pengingat aktif.");
+    const lines = items.map((r, i) =>
+      `${i + 1}. 📝 ${r.event}\n   📅 ${formatFriendly(r.datetime_iso)}\n   🔖 ${r.id}`
+    );
+    await ctx.reply(`📋 Pengingat aktif (${items.length}):\n\n${lines.join("\n\n")}`);
+  } catch (err) {
+    await ctx.reply(`❌ Gagal: ${err.message}`);
+  }
+});
+
+bot.command("hapus", async (ctx) => {
+  const id = ctx.message.text.replace(/^\/hapus\s*/i, "").trim();
+  if (!id) return ctx.reply("Format: /hapus <id>\nLihat ID di /list");
+  try {
+    const ok = await removeReminder(id);
+    await ctx.reply(ok ? `🗑️ Pengingat ${id} dihapus.` : `❌ ID ${id} tidak ditemukan.`);
+  } catch (err) {
+    await ctx.reply(`❌ Gagal: ${err.message}`);
+  }
+});
 
 bot.on("text", async (ctx) => {
   const text = ctx.message.text.trim();
