@@ -34,7 +34,7 @@ const tsJakarta = () => {
   const parts = Object.fromEntries(fmt.formatToParts(new Date()).map(p => [p.type, p.value]));
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}${parts.minute}`,
+    time: `${parts.hour}${parts.minute}${parts.second}`,
     iso: `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} WIB`,
   };
 };
