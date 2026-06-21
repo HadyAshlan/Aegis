@@ -97,9 +97,10 @@ export const handleMessage = async (chatId, userText) => {
       console.log(`[brain turn ${turn}] tool=${action.tool} params=${JSON.stringify(action.params || {})}`);
       const result = await dispatch(action.tool, action.params || {});
       messages.push({ role: "assistant", content });
+      // Compound model strict: pesan terakhir wajib role "user". Pakai "user" untuk feed tool result.
       messages.push({
-        role: "system",
-        content: `[Hasil tool "${action.tool}"]: ${result}\n\nSekarang kompose JSON action berikutnya. Biasanya action: "reply" dengan jawaban natural untuk Pak Hady berdasarkan hasil tool di atas.`,
+        role: "user",
+        content: `[Hasil tool "${action.tool}"]: ${result}\n\nKompose JSON action berikutnya. Biasanya action: "reply" dengan jawaban natural untuk Pak Hady berdasarkan hasil tool di atas.`,
       });
       continue;
     }
