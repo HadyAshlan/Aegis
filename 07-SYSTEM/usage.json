@@ -2,13 +2,13 @@
   "daily": {
     "2026-06-22": {
       "senior": {
-        "calls": 23,
-        "prompt": 53799,
-        "completion": 5017,
+        "calls": 24,
+        "prompt": 54872,
+        "completion": 5139,
         "by_model": {
           "groq/compound": 8,
           "groq/compound-mini": 2,
-          "openai/gpt-oss-120b": 13
+          "openai/gpt-oss-120b": 14
         }
       }
     }
