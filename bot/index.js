@@ -11,6 +11,7 @@ import { weeklyReflect } from "./lib/reflect.js";
 import { recordFeedback, summary as feedbackSummary } from "./lib/feedback.js";
 import { aiCall } from "./lib/ai.js";
 import { generateAuthUrl, exchangeCode, createEvent as gcalCreate, isConfigured as gcalReady } from "./lib/google-calendar.js";
+import { generateMorningBrief, generateEveningRecap } from "./lib/briefings.js";
 import { nowJakarta, formatFriendly } from "./lib/time.js";
 
 const REQUIRED = [
@@ -118,6 +119,22 @@ bot.command("cari", async (ctx) => {
   }
 });
 
+bot.command("brief", async (ctx) => {
+  await ctx.reply("🌅 Bikin morning brief...");
+  try {
+    const b = await generateMorningBrief();
+    await ctx.reply(b, { parse_mode: "Markdown", ...fbKeyboard("morning") });
+  } catch (err) { await ctx.reply(`❌ ${err.message}`); }
+});
+
+bot.command("recap", async (ctx) => {
+  await ctx.reply("🌙 Bikin evening recap...");
+  try {
+    const r = await generateEveningRecap();
+    await ctx.reply(r, { parse_mode: "Markdown", ...fbKeyboard("evening") });
+  } catch (err) { await ctx.reply(`❌ ${err.message}`); }
+});
+
 bot.command("refleksi", async (ctx) => {
   await ctx.reply("🪞 Bikin refleksi minggu ini...");
   try {
@@ -205,6 +222,40 @@ bot.on("callback_query", async (ctx) => {
   }
 });
 
+// === Voice note → transkrip Groq Whisper → forward ke brain ===
+bot.on("voice", async (ctx) => {
+  try {
+    await ctx.reply("🎙️ Transkrip suara...");
+    const fileLink = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
+    const audioRes = await fetch(fileLink.href);
+    if (!audioRes.ok) throw new Error(`download fail: ${audioRes.status}`);
+    const audioBuf = await audioRes.arrayBuffer();
+
+    const fd = new FormData();
+    fd.append("file", new Blob([audioBuf], { type: "audio/ogg" }), "voice.ogg");
+    fd.append("model", "whisper-large-v3");
+    fd.append("language", "id");
+    fd.append("response_format", "json");
+
+    const trRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+      body: fd,
+    });
+    if (!trRes.ok) throw new Error(`Groq whisper ${trRes.status}: ${await trRes.text()}`);
+    const { text } = await trRes.json();
+    if (!text || text.trim().length < 2) {
+      return ctx.reply("🤷 Tidak terdengar suaranya, Pak.");
+    }
+    await ctx.reply(`🎙️ _"${text}"_`, { parse_mode: "Markdown" });
+    const reply = await handleMessage(ctx.from.id, text);
+    await ctx.reply(reply, fbKeyboard("brain"));
+  } catch (err) {
+    console.error("voice handler error:", err);
+    await ctx.reply(`❌ Gagal transkrip: ${err.message}`);
+  }
+});
+
 // === Main: semua pesan teks → brain orchestrator ===
 bot.on("text", async (ctx) => {
   const text = ctx.message.text.trim();
@@ -280,6 +331,34 @@ const reflectLoop = async () => {
   } catch (err) { console.error("reflectLoop error:", err.message); }
 };
 setInterval(reflectLoop, 60_000);
+
+// === Morning brief 06:00 WIB tiap hari ===
+let briefLastRunDate = null;
+const briefLoop = async () => {
+  try {
+    const n = nowJakarta();
+    if (n.iso.slice(11, 13) === "06" && n.iso.slice(14, 16) === "00" && briefLastRunDate !== n.date) {
+      briefLastRunDate = n.date;
+      const brief = await generateMorningBrief();
+      await bot.telegram.sendMessage(OWNER_ID, brief, { parse_mode: "Markdown", ...fbKeyboard("morning") });
+    }
+  } catch (err) { console.error("briefLoop error:", err.message); }
+};
+setInterval(briefLoop, 60_000);
+
+// === Evening recap 21:00 WIB tiap hari ===
+let recapLastRunDate = null;
+const recapLoop = async () => {
+  try {
+    const n = nowJakarta();
+    if (n.iso.slice(11, 13) === "21" && n.iso.slice(14, 16) === "00" && recapLastRunDate !== n.date) {
+      recapLastRunDate = n.date;
+      const recap = await generateEveningRecap();
+      await bot.telegram.sendMessage(OWNER_ID, recap, { parse_mode: "Markdown", ...fbKeyboard("evening") });
+    }
+  } catch (err) { console.error("recapLoop error:", err.message); }
+};
+setInterval(recapLoop, 60_000);
 
 // === Startup ===
 bot.catch((err) => console.error("Bot error:", err));
