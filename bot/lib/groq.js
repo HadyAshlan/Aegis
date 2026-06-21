@@ -55,6 +55,24 @@ Pesan Hady:
 """${text}"""`;
 };
 
+export const formatScheduleAnswer = async (question, label, items) => {
+  const prompt = `Kamu Aegis — asisten pribadi Hady. Hady bertanya: "${question}"
+
+Data jadwal untuk "${label}":
+${items.length === 0 ? "(kosong)" : items.map((r, i) =>
+  `${i + 1}. ${r.event} — ${r.friendly}`).join("\n")}
+
+Tugas: jawab Hady dengan singkat, natural, bahasa Indonesia santai tapi sopan (panggil "Pak"). Maksimal 3 kalimat. Sebut detail tanggal/jam kalau ada. Kalau kosong, beri tahu santai. Jangan pakai format daftar bernomor kalau cuma 1-2 item. Jangan pakai emoji berlebihan (maksimal 1).`;
+
+  const res = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.4,
+    max_tokens: 250,
+  });
+  return res.choices[0]?.message?.content?.trim() || "Maaf Pak, ada masalah saat menyusun jawaban.";
+};
+
 export const analyze = async (text) => {
   const res = await groq.chat.completions.create({
     model: "llama-3.3-70b-versatile",

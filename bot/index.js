@@ -99,9 +99,9 @@ bot.on("text", async (ctx) => {
     // 1. Analisis pesan
     const a = await analyze(text);
 
-    // 1b. Tanya jadwal → jawab dari reminders
+    // 1b. Tanya jadwal → jawab dari reminders (natural via Groq)
     if (a.intent === "tanya_jadwal") {
-      const answer = await answerSchedule(a.date_range);
+      const answer = await answerSchedule(text, a.date_range);
       return ctx.reply(answer);
     }
 

@@ -2,8 +2,8 @@
 
 import { listActive } from "./reminders.js";
 import { formatFriendly } from "./time.js";
+import { formatScheduleAnswer } from "./groq.js";
 
-// Range tanggal dalam timezone Jakarta → window [start, end] ISO
 const buildRange = (rangeKey) => {
   const now = new Date();
   const jakarta = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
@@ -19,7 +19,7 @@ const buildRange = (rangeKey) => {
     case "lusa":
       return [at(y, m, d + 2, 0, 0), at(y, m, d + 2, 23, 59), "lusa"];
     case "minggu_ini": {
-      const dow = jakarta.getDay(); // 0=Min
+      const dow = jakarta.getDay();
       const monOffset = dow === 0 ? -6 : 1 - dow;
       return [at(y, m, d + monOffset, 0, 0), at(y, m, d + monOffset + 6, 23, 59), "minggu ini"];
     }
@@ -35,16 +35,13 @@ const buildRange = (rangeKey) => {
   }
 };
 
-export const answerSchedule = async (rangeKey) => {
+export const answerSchedule = async (question, rangeKey) => {
   const [start, end, label] = buildRange(rangeKey);
   const all = await listActive();
   const inRange = all
     .filter(r => r.datetime_iso >= start && r.datetime_iso <= end)
-    .sort((a, b) => a.datetime_iso.localeCompare(b.datetime_iso));
+    .sort((a, b) => a.datetime_iso.localeCompare(b.datetime_iso))
+    .map(r => ({ event: r.event, friendly: formatFriendly(r.datetime_iso) }));
 
-  if (inRange.length === 0) return `📭 Tidak ada jadwal ${label}.`;
-  const lines = inRange.map((r, i) =>
-    `${i + 1}. 📝 ${r.event}\n   📅 ${formatFriendly(r.datetime_iso)}`
-  );
-  return `📋 Jadwal ${label} (${inRange.length}):\n\n${lines.join("\n\n")}`;
+  return formatScheduleAnswer(question, label, inRange);
 };
