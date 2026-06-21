@@ -25,13 +25,23 @@ const getFile = async (path) => {
 };
 
 export const writeFile = async (path, content, message) => {
-  const existing = await getFile(path);
   const encoded = Buffer.from(content, "utf-8").toString("base64");
-  await gh.repos.createOrUpdateFileContents({
-    owner: GITHUB_OWNER, repo: GITHUB_REPO, branch: GITHUB_BRANCH,
-    path, message, content: encoded,
-    sha: existing?.sha,
-  });
+  // Retry on SHA conflict (race condition kalau ada concurrent writes)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const existing = await getFile(path);
+    try {
+      await gh.repos.createOrUpdateFileContents({
+        owner: GITHUB_OWNER, repo: GITHUB_REPO, branch: GITHUB_BRANCH,
+        path, message, content: encoded,
+        sha: existing?.sha,
+      });
+      return;
+    } catch (err) {
+      const conflict = err?.status === 409 || /expected/i.test(err?.message || "");
+      if (!conflict || attempt === 3) throw err;
+      await new Promise(r => setTimeout(r, 300 * attempt));
+    }
+  }
 };
 
 export const readJSON = async (path, fallback = {}) => {

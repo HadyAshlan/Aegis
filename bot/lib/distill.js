@@ -137,15 +137,13 @@ export const distillText = async (text, sourceFile = "live") => {
   }
   for (const b of ex.beliefs) { mergeBelief(beliefsDoc.beliefs, b, today); totals.beliefs++; }
 
-  // Save hanya yang berubah (hemat commit)
-  const writes = [];
-  if (totals.owner) writes.push(writeJSON(MEM.owner, ownerDoc, `memory: owner profile update`));
-  if (totals.people) writes.push(writeJSON(MEM.people, peopleDoc, `memory: people +${totals.people}`));
-  if (totals.projects) writes.push(writeJSON(MEM.projects, projectsDoc, `memory: projects +${totals.projects}`));
-  if (totals.events) writes.push(writeJSON(MEM.events, eventsDoc, `memory: events +${totals.events}`));
-  if (totals.decisions) writes.push(writeJSON(MEM.decisions, decisionsDoc, `memory: decisions +${totals.decisions}`));
-  if (totals.beliefs) writes.push(writeJSON(MEM.beliefs, beliefsDoc, `memory: beliefs +${totals.beliefs}`));
-  await Promise.all(writes);
+  // Save sequential (hindari SHA conflict — GitHub tidak suka concurrent writes ke beda file ber-SHA)
+  if (totals.owner) await writeJSON(MEM.owner, ownerDoc, `memory: owner profile update`);
+  if (totals.people) await writeJSON(MEM.people, peopleDoc, `memory: people +${totals.people}`);
+  if (totals.projects) await writeJSON(MEM.projects, projectsDoc, `memory: projects +${totals.projects}`);
+  if (totals.events) await writeJSON(MEM.events, eventsDoc, `memory: events +${totals.events}`);
+  if (totals.decisions) await writeJSON(MEM.decisions, decisionsDoc, `memory: decisions +${totals.decisions}`);
+  if (totals.beliefs) await writeJSON(MEM.beliefs, beliefsDoc, `memory: beliefs +${totals.beliefs}`);
 
   return totals;
 };
