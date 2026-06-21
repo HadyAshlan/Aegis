@@ -1,13 +1,13 @@
-// Groq analyzer — analisis pesan: importance + kategori + jadwal (1 call hemat token)
+// Aegis cognitive functions — pakai router AI multi-model (lib/ai.js).
+// Tiap fungsi pilih peran otak yang tepat (fast / analyze / reason).
 
-import Groq from "groq-sdk";
+import { aiCall, safeJSON } from "./ai.js";
 import { nowJakarta } from "./time.js";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-const buildPrompt = (text) => {
+// === REFLEX: klasifikasi & intent (pakai model 'fast') ===
+export const analyze = async (text) => {
   const today = nowJakarta();
-  return `Kamu Aegis — asisten pribadi Hady (pemilik bisnis armada & SaaS). Hari ini: ${today.iso}.
+  const prompt = `Kamu Aegis — asisten pribadi Hady (pemilik bisnis armada & SaaS). Hari ini: ${today.iso}.
 
 Analisis pesan dari Hady. Output STRICT JSON, tanpa code fence, tanpa penjelasan tambahan.
 
@@ -25,124 +25,91 @@ Schema:
 }
 
 Pedoman intent:
-- catat: user kasih info/jadwal baru ("besok jam 10 meeting", "ide bisnis baru")
-- tanya_jadwal: user TANYA tentang jadwal ("jadwal besok apa?", "minggu ini ada apa?", "hari ini saya ngapain?", "ada apa lusa?")
-- tanya_catatan: user TANYA isi catatan lain ("saya pernah catat soal X?", "siapa orang yang saya tulis kemarin?", "ide apa yang saya simpan minggu lalu?")
+- catat: user kasih info/jadwal baru
+- tanya_jadwal: user TANYA tentang jadwal ("besok apa?", "minggu ini?")
+- tanya_catatan: user TANYA isi catatan lain
 
 Pedoman importance:
-- P0: urgent kritis hari ini (rapat bos, bayar tagihan jatuh tempo)
-- P1: penting & spesifik (jadwal meeting, deadline, decision)
-- P2: berguna tapi tidak mendesak (ide bisnis, info, kontak orang)
-- P3: random/test/noise/tidak bermakna (mis. "tes", "halo", "abc", "asdf", coba-coba)
+- P0: urgent kritis hari ini
+- P1: penting & spesifik (jadwal, deadline)
+- P2: berguna tapi tidak mendesak (ide, info, kontak)
+- P3: random/test/noise/satu kata tanpa konteks
 
 Pedoman category:
-- jadwal: ada tanggal/waktu eksplisit/implisit
-- tugas: yang harus dikerjakan tapi tanpa jadwal pasti
-- ide: gagasan bisnis/insight/refleksi
-- info: fakta/data/catatan
-- orang: catatan tentang seseorang (nama, kontak, hubungan)
-- test: percobaan bot ("test", "tes", "ping", kata acak)
-- noise: emoji doang, satu kata tanpa konteks, spam
+- jadwal: ada tanggal/waktu
+- tugas: harus dikerjakan tanpa jadwal pasti
+- ide: gagasan/insight
+- info: fakta/catatan
+- orang: tentang seseorang
+- test/noise: percobaan / satu kata tanpa makna
 
 Aturan jadwal:
-- "besok" = +1 hari, "lusa" = +2 hari, nama hari = hari terdekat ke depan
-- "pagi"=08:00, "siang"=12:00, "sore"=15:00, "malam"=19:00
-- "jam 10" tanpa AM/PM → 10:00
-- Tanpa waktu spesifik → default 09:00
-- Tanpa tanggal sama sekali → has_schedule: false, datetime_iso & event = null
+- "besok"=+1, "lusa"=+2, nama hari=hari terdekat ke depan
+- "pagi"=08, "siang"=12, "sore"=15, "malam"=19
+- Default tanpa jam → 09:00; tanpa tanggal sama sekali → has_schedule:false
 
-Pesan Hady:
-"""${text}"""`;
+Pesan: """${text}"""`;
+
+  const { content } = await aiCall("fast", { prompt, temperature: 0.1, max_tokens: 400, json: true });
+  const p = safeJSON(content, {});
+  return {
+    intent: p.intent || "catat",
+    importance: p.importance || "P2",
+    category: p.category || "info",
+    has_schedule: !!p.has_schedule,
+    datetime_iso: p.datetime_iso || null,
+    event: p.event || null,
+    date_range: p.date_range || null,
+    search_query: p.search_query || null,
+    reason: p.reason || "",
+  };
 };
 
+// === CORTEX: ekstrak entitas untuk distill (pakai model 'analyze') ===
 export const extract = async (text) => {
   const today = nowJakarta();
   const prompt = `Ekstrak entitas dari catatan Hady. Hari ini: ${today.iso}.
 
 Output STRICT JSON, tanpa code fence. Schema:
 {
-  "people": [{"name": "Nama", "role": "peran/profesi singkat", "context": "kaitan dengan Hady", "notes": ["catatan singkat"]}],
+  "people": [{"name": "Nama", "role": "peran singkat", "context": "kaitan dengan Hady", "notes": ["catatan singkat"]}],
   "projects": [{"name": "Nama project", "status": "aktif|jeda|selesai", "notes": ["catatan"]}],
-  "events": [{"datetime_iso": "YYYY-MM-DDTHH:mm:ss+07:00", "event": "ringkas 3-8 kata", "involves": ["nama orang"], "project": "nama project atau null"}],
-  "decisions": [{"decision": "apa yang diputuskan", "reason": "alasan singkat"}],
-  "beliefs": [{"belief": "prinsip / yang Hady yakini"}]
+  "events": [{"datetime_iso": "YYYY-MM-DDTHH:mm:ss+07:00", "event": "ringkas 3-8 kata", "involves": ["nama"], "project": "nama atau null"}],
+  "decisions": [{"decision": "apa yg diputuskan", "reason": "alasan singkat"}],
+  "beliefs": [{"belief": "prinsip yg Hady yakini"}]
 }
 
 Aturan:
-- Kalau tidak ada entitas dalam kategori → array kosong []
-- Jangan force — kalau tidak yakin atau tidak relevan, skip (array kosong)
-- Nama orang harus disebut eksplisit di teks. Jangan ada "Bapak Hady" (itu user sendiri)
-- Project = topik kerja besar. Bukan tugas kecil
+- Kalau tidak ada entitas → array kosong []
+- Jangan force — kalau tidak yakin, skip
+- Nama orang harus eksplisit. Jangan ada "Bapak Hady"
+- Project = topik kerja besar
 - Event butuh tanggal/waktu eksplisit
-- Decision: ada kata "saya pilih / putuskan / akan / mau". Bukan plain reminder
-- Belief: pernyataan prinsip ("Saya percaya..." / "Yang penting adalah...")
+- Decision butuh kata "saya pilih/putuskan/akan/mau"
+- Belief = pernyataan prinsip ("Saya percaya...", "Yang penting...")
 
-Catatan Hady:
-"""${text}"""`;
+Catatan: """${text}"""`;
 
-  const res = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.1,
-    max_tokens: 800,
-    response_format: { type: "json_object" },
-  });
-  const raw = res.choices[0]?.message?.content?.trim() || "{}";
-  try {
-    const p = JSON.parse(raw);
-    return {
-      people: Array.isArray(p.people) ? p.people : [],
-      projects: Array.isArray(p.projects) ? p.projects : [],
-      events: Array.isArray(p.events) ? p.events : [],
-      decisions: Array.isArray(p.decisions) ? p.decisions : [],
-      beliefs: Array.isArray(p.beliefs) ? p.beliefs : [],
-    };
-  } catch {
-    return { people: [], projects: [], events: [], decisions: [], beliefs: [] };
-  }
+  const { content } = await aiCall("analyze", { prompt, temperature: 0.1, max_tokens: 800, json: true });
+  const p = safeJSON(content, {});
+  return {
+    people: Array.isArray(p.people) ? p.people : [],
+    projects: Array.isArray(p.projects) ? p.projects : [],
+    events: Array.isArray(p.events) ? p.events : [],
+    decisions: Array.isArray(p.decisions) ? p.decisions : [],
+    beliefs: Array.isArray(p.beliefs) ? p.beliefs : [],
+  };
 };
 
+// === SPEECH: rangkai jawaban natural (pakai 'fast') ===
 export const formatScheduleAnswer = async (question, label, items) => {
   const prompt = `Kamu Aegis — asisten pribadi Hady. Hady bertanya: "${question}"
 
 Data jadwal untuk "${label}":
-${items.length === 0 ? "(kosong)" : items.map((r, i) =>
-  `${i + 1}. ${r.event} — ${r.friendly}`).join("\n")}
+${items.length === 0 ? "(kosong)" : items.map((r, i) => `${i + 1}. ${r.event} — ${r.friendly}`).join("\n")}
 
-Tugas: jawab Hady dengan singkat, natural, bahasa Indonesia santai tapi sopan (panggil "Pak"). Maksimal 3 kalimat. Sebut detail tanggal/jam kalau ada. Kalau kosong, beri tahu santai. Jangan pakai format daftar bernomor kalau cuma 1-2 item. Jangan pakai emoji berlebihan (maksimal 1).`;
+Tugas: jawab Hady singkat, natural, Bahasa Indonesia santai tapi sopan (panggil "Pak"). Maks 3 kalimat. Sebut detail tanggal/jam kalau ada. Kalau kosong, kasih tahu santai. Jangan format daftar bernomor kalau cuma 1-2 item. Maks 1 emoji.`;
 
-  const res = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.4,
-    max_tokens: 250,
-  });
-  return res.choices[0]?.message?.content?.trim() || "Maaf Pak, ada masalah saat menyusun jawaban.";
-};
-
-export const analyze = async (text) => {
-  const res = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [{ role: "user", content: buildPrompt(text) }],
-    temperature: 0.1,
-    max_tokens: 400,
-    response_format: { type: "json_object" },
-  });
-  const raw = res.choices[0]?.message?.content?.trim() || "{}";
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      intent: parsed.intent || "catat",
-      importance: parsed.importance || "P2",
-      category: parsed.category || "info",
-      has_schedule: !!parsed.has_schedule,
-      datetime_iso: parsed.datetime_iso || null,
-      event: parsed.event || null,
-      date_range: parsed.date_range || null,
-      search_query: parsed.search_query || null,
-      reason: parsed.reason || "",
-    };
-  } catch {
-    return { intent: "catat", importance: "P2", category: "info", has_schedule: false, reason: "parse error" };
-  }
+  const { content } = await aiCall("fast", { prompt, temperature: 0.4, max_tokens: 250 });
+  return content || "Maaf Pak, ada masalah saat menyusun jawaban.";
 };
