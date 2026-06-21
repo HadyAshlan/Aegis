@@ -111,6 +111,29 @@ Output: {
   "decisions": [], "beliefs": []
 }
 
+Input: "Senin 22 June 2026 ada rapat anggota tahunan kojang"
+Output: {
+  "owner_profile": null,
+  "people": [], "projects": [],
+  "events": [{"datetime_iso": "2026-06-22T09:00:00+07:00", "event": "Rapat anggota tahunan kojang", "involves": [], "project": "kojang"}],
+  "decisions": [], "beliefs": []
+}
+
+Input: "5 Agu 2026 service mobil M44"
+Output: {
+  "owner_profile": null,
+  "people": [], "projects": [{"name": "M44", "status": "aktif", "notes": []}],
+  "events": [{"datetime_iso": "2026-08-05T09:00:00+07:00", "event": "Service mobil M44", "involves": [], "project": "M44"}],
+  "decisions": [], "beliefs": []
+}
+
+PENTING: nama bulan dalam berbagai format harus dipetakan dengan benar:
+- Indonesia: Januari/Jan, Februari/Feb, Maret/Mar, April/Apr, Mei, Juni/Jun, Juli/Jul, Agustus/Agu, September/Sep, Oktober/Okt, November/Nov, Desember/Des
+- English: January, February, March, April, May, June, July, August, September, October, November, December
+- "22 June 2026" = "2026-06-22"
+- "5 Agu 2026" = "2026-08-05"
+- Tanpa jam → default 09:00:00+07:00
+
 Catatan: """${text}"""`;
 
   const { content, model } = await aiCall("analyze", { prompt, temperature: 0.1, max_tokens: 800, json: true });
