@@ -79,8 +79,8 @@ const handleConfirmation = async (ctx, text) => {
   if (!/^(ya|y|yes|ok|oke|tidak|t|no|batal|skip)$/i.test(normalized)) return false;
   pending.delete(ctx.from.id);
   if (/^(tidak|t|no|batal|skip)$/i.test(normalized)) {
-    const path = await saveToFile("00-INBOX", p.source, { importance: p.importance, category: p.category });
-    return ctx.reply(`✅ Tidak dijadwalkan, tercatat ke inbox → ${path}`);
+    await saveToFile("00-INBOX", p.source, { importance: p.importance, category: p.category });
+    return ctx.reply("👌 Tidak dijadwalkan.");
   }
   // ya
   const { id, friendly } = await addReminder({
@@ -98,10 +98,10 @@ bot.on("text", async (ctx) => {
     // 1. Analisis pesan
     const a = await analyze(text);
 
-    // 2. Test/noise → archive, jangan ganggu
+    // 2. Test/noise → archive silent (tidak balas)
     if (a.category === "test" || a.category === "noise" || a.importance === "P3") {
-      const path = await saveToFile("06-ARCHIVE/test", text, { importance: a.importance, category: a.category, reason: a.reason });
-      return ctx.reply(`🗑️ Disimpan ke arsip [${a.category}/${a.importance}].`);
+      await saveToFile("06-ARCHIVE/test", text, { importance: a.importance, category: a.category, reason: a.reason });
+      return;
     }
 
     // 3. Ada jadwal → minta konfirmasi dulu
@@ -120,9 +120,9 @@ bot.on("text", async (ctx) => {
       );
     }
 
-    // 4. Penting tapi tanpa jadwal → simpan ke inbox
-    const path = await saveToFile("00-INBOX", text, { importance: a.importance, category: a.category });
-    return ctx.reply(`✅ Tercatat [${a.category}/${a.importance}] → ${path}`);
+    // 4. Penting tapi tanpa jadwal → simpan ke inbox silent
+    await saveToFile("00-INBOX", text, { importance: a.importance, category: a.category });
+    return;
   } catch (err) {
     console.error("handle text error:", err);
     await ctx.reply(`❌ Gagal: ${err.message}`);
