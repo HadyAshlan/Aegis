@@ -6,6 +6,7 @@ import { distillText } from "./distill.js";
 import { addReminder, listActive, removeReminder } from "./reminders.js";
 import { answerSchedule } from "./query.js";
 import { answerCatatan } from "./recall.js";
+import { createEvent as gcalCreate, isConfigured as gcalReady } from "./google-calendar.js";
 import { nowJakarta } from "./time.js";
 
 // Schema yang brain baca → tahu params apa yang harus dia kirim
@@ -75,7 +76,21 @@ export const dispatch = async (toolName, params = {}) => {
           event: params.event,
           source: params.source || params.event,
         });
-        return J({ ok: true, id: r.id, friendly: r.friendly });
+        // Coba sync ke Google Calendar (silent fail kalau belum diauth)
+        let google_calendar = null;
+        try {
+          if (await gcalReady()) {
+            const ev = await gcalCreate({
+              datetime_iso: params.datetime_iso,
+              event: params.event,
+              source: params.source || params.event,
+            });
+            google_calendar = ev.htmlLink;
+          }
+        } catch (err) {
+          console.warn("[google calendar sync] skip:", err.message);
+        }
+        return J({ ok: true, id: r.id, friendly: r.friendly, google_calendar });
       }
       case "search_memory": {
         if (!params.query) return J({ error: "query wajib" });

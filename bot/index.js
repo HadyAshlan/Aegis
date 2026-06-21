@@ -10,6 +10,7 @@ import { distill } from "./lib/distill.js";
 import { weeklyReflect } from "./lib/reflect.js";
 import { recordFeedback, summary as feedbackSummary } from "./lib/feedback.js";
 import { aiCall } from "./lib/ai.js";
+import { generateAuthUrl, exchangeCode, createEvent as gcalCreate, isConfigured as gcalReady } from "./lib/google-calendar.js";
 import { nowJakarta, formatFriendly } from "./lib/time.js";
 
 const REQUIRED = [
@@ -125,6 +126,52 @@ bot.command("refleksi", async (ctx) => {
     await ctx.reply(`📝 Refleksi siap → ${res.path}\n\n${res.snippet}${res.snippet.length >= 500 ? "..." : ""}`);
   } catch (err) {
     console.error("refleksi error:", err);
+    await ctx.reply(`❌ Gagal: ${err.message}`);
+  }
+});
+
+// === Google Calendar setup commands ===
+bot.command("cal_auth", async (ctx) => {
+  try {
+    const url = generateAuthUrl();
+    await ctx.reply(
+      "🔐 Auth Google Calendar (1x setup):\n\n" +
+      "1. Buka link ini di browser:\n" + url + "\n\n" +
+      "2. Login akun Google yg HP-nya pakai Calendar\n" +
+      "3. Klik *Allow* / Izinkan\n" +
+      "4. Browser akan error \"can't reach localhost\" — ITU NORMAL\n" +
+      "5. Copy semua URL di address bar (mulai http://localhost?code=...)\n" +
+      "6. Kirim balik dengan format: `/cal_code <code>` (ambil dari ?code=... sampai sebelum &)\n\n" +
+      "Contoh: kalau URL `http://localhost?code=4/0AbCD-abc&scope=...`, kirim `/cal_code 4/0AbCD-abc`",
+      { parse_mode: "Markdown", disable_web_page_preview: true }
+    );
+  } catch (err) {
+    await ctx.reply(`❌ Gagal: ${err.message}`);
+  }
+});
+
+bot.command("cal_code", async (ctx) => {
+  const code = ctx.message.text.replace(/^\/cal_code\s*/i, "").trim();
+  if (!code) return ctx.reply("Format: /cal_code <code dari URL>");
+  try {
+    await exchangeCode(decodeURIComponent(code));
+    await ctx.reply("✅ Google Calendar auth sukses! Sekarang setiap reminder baru akan otomatis muncul di Google Calendar Bapak (notif H-1 jam & H-10 menit).\n\nCoba test: /cal_test");
+  } catch (err) {
+    await ctx.reply(`❌ Gagal exchange code: ${err.message}\n\nCoba /cal_auth lagi.`);
+  }
+});
+
+bot.command("cal_test", async (ctx) => {
+  try {
+    if (!await gcalReady()) return ctx.reply("Belum auth. Ketik /cal_auth dulu.");
+    const start = new Date(Date.now() + 30 * 60_000); // 30 menit dari sekarang
+    const ev = await gcalCreate({
+      datetime_iso: start.toISOString(),
+      event: "🧪 Test Aegis Calendar Sync",
+      source: "Test sync dari Aegis bot",
+    });
+    await ctx.reply(`✅ Test event dibuat di Google Calendar.\n📅 ${ev.htmlLink}\n\nCek HP Bapak — event baru harusnya muncul dalam beberapa detik.`, { disable_web_page_preview: true });
+  } catch (err) {
     await ctx.reply(`❌ Gagal: ${err.message}`);
   }
 });
