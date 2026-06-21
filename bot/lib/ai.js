@@ -2,6 +2,7 @@
 // Tiap fungsi punya peran spesifik + fallback chain kalau model rate-limit.
 
 import Groq from "groq-sdk";
+import { trackUsage } from "./usage.js";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -28,6 +29,11 @@ const callWithFallback = async (role, params) => {
   for (const model of list) {
     try {
       const res = await groq.chat.completions.create({ ...params, model });
+      trackUsage({
+        role, model,
+        prompt_tokens: res.usage?.prompt_tokens || 0,
+        completion_tokens: res.usage?.completion_tokens || 0,
+      }).catch(() => {});
       return { content: res.choices[0]?.message?.content?.trim() || "", model };
     } catch (err) {
       lastErr = err;

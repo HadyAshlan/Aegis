@@ -14,6 +14,8 @@ import { generateAuthUrl, exchangeCode, createEvent as gcalCreate, isConfigured 
 import { generateMorningBrief, generateEveningRecap } from "./lib/briefings.js";
 import { detectAnomalies } from "./lib/anomaly.js";
 import { dailySnapshot } from "./lib/backup.js";
+import { generateClaudeMdSuggestion, generateFeedbackDigest } from "./lib/self-update.js";
+import { getUsageToday, getUsageLast7Days } from "./lib/usage.js";
 import { nowJakarta, formatFriendly } from "./lib/time.js";
 
 const REQUIRED = [
@@ -135,6 +137,41 @@ bot.command("anomaly", async (ctx) => {
     const res = await detectAnomalies();
     if (!res.hasAnomaly) return ctx.reply("✅ Bersih, tidak ada anomali.");
     await ctx.reply(res.message, fbKeyboard("anomaly"));
+  } catch (err) { await ctx.reply(`❌ ${err.message}`); }
+});
+
+bot.command("usage", async (ctx) => {
+  try {
+    const today = await getUsageToday();
+    const week = await getUsageLast7Days();
+    const lines = ["📊 *Token Usage*", "", "*Hari Ini:*"];
+    let totalToday = 0;
+    for (const [role, s] of Object.entries(today)) {
+      lines.push(`• ${role}: ${s.calls} calls, ${s.prompt + s.completion} tokens`);
+      totalToday += s.prompt + s.completion;
+    }
+    if (Object.keys(today).length === 0) lines.push("(belum ada hari ini)");
+    lines.push(`*Total hari ini: ${totalToday} tokens*`);
+    lines.push("", "*7 Hari Terakhir (total):*");
+    let total7 = 0, calls7 = 0;
+    for (const day of Object.values(week)) {
+      for (const s of Object.values(day)) {
+        total7 += s.prompt + s.completion;
+        calls7 += s.calls;
+      }
+    }
+    lines.push(`${calls7} calls • ${total7} tokens`);
+    await ctx.reply(lines.join("\n"), { parse_mode: "Markdown" });
+  } catch (err) { await ctx.reply(`❌ ${err.message}`); }
+});
+
+bot.command("tune", async (ctx) => {
+  await ctx.reply("🔧 Bikin saran tuning CLAUDE.md + digest feedback...");
+  try {
+    const [c, f] = await Promise.all([generateClaudeMdSuggestion(), generateFeedbackDigest()]);
+    let msg = `📝 Saran CLAUDE.md → ${c.path}\n\n${c.snippet}`;
+    if (!f.skipped) msg += `\n\n---\n\n📊 Feedback Digest → ${f.path}\n\n${f.snippet}`;
+    await ctx.reply(msg);
   } catch (err) { await ctx.reply(`❌ ${err.message}`); }
 });
 
@@ -408,6 +445,35 @@ const anomalyLoop = async () => {
   } catch (err) { console.error("anomalyLoop error:", err.message); }
 };
 setInterval(anomalyLoop, 60_000);
+
+// === Weekly self-tuning Minggu 20:00 WIB (Aegis evaluasi & saran improve diri) ===
+let tuneLastRunWeek = null;
+const tuneLoop = async () => {
+  try {
+    const now = new Date();
+    const j = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta", hour12: false }));
+    if (j.getDay() === 0 && j.getHours() === 20 && j.getMinutes() === 0) {
+      const wk = `${j.getFullYear()}-W${Math.ceil((j.getDate() + 6) / 7)}`;
+      if (tuneLastRunWeek === wk) return;
+      tuneLastRunWeek = wk;
+      const [c, f] = await Promise.all([
+        generateClaudeMdSuggestion().catch(() => null),
+        generateFeedbackDigest().catch(() => ({ skipped: true })),
+      ]);
+      if (c) {
+        await bot.telegram.sendMessage(
+          OWNER_ID,
+          `🔧 *Self-tuning minggu ${wk}*\n\nSaran CLAUDE.md siap → ${c.path}\n\n${c.snippet}`,
+          { parse_mode: "Markdown" }
+        );
+      }
+      if (f && !f.skipped) {
+        await bot.telegram.sendMessage(OWNER_ID, `📊 Feedback Digest siap → ${f.path}`);
+      }
+    }
+  } catch (err) { console.error("tuneLoop error:", err.message); }
+};
+setInterval(tuneLoop, 60_000);
 
 // === Startup ===
 bot.catch((err) => console.error("Bot error:", err));
