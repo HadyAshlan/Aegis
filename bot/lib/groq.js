@@ -55,6 +55,53 @@ Pesan Hady:
 """${text}"""`;
 };
 
+export const extract = async (text) => {
+  const today = nowJakarta();
+  const prompt = `Ekstrak entitas dari catatan Hady. Hari ini: ${today.iso}.
+
+Output STRICT JSON, tanpa code fence. Schema:
+{
+  "people": [{"name": "Nama", "role": "peran/profesi singkat", "context": "kaitan dengan Hady", "notes": ["catatan singkat"]}],
+  "projects": [{"name": "Nama project", "status": "aktif|jeda|selesai", "notes": ["catatan"]}],
+  "events": [{"datetime_iso": "YYYY-MM-DDTHH:mm:ss+07:00", "event": "ringkas 3-8 kata", "involves": ["nama orang"], "project": "nama project atau null"}],
+  "decisions": [{"decision": "apa yang diputuskan", "reason": "alasan singkat"}],
+  "beliefs": [{"belief": "prinsip / yang Hady yakini"}]
+}
+
+Aturan:
+- Kalau tidak ada entitas dalam kategori → array kosong []
+- Jangan force — kalau tidak yakin atau tidak relevan, skip (array kosong)
+- Nama orang harus disebut eksplisit di teks. Jangan ada "Bapak Hady" (itu user sendiri)
+- Project = topik kerja besar. Bukan tugas kecil
+- Event butuh tanggal/waktu eksplisit
+- Decision: ada kata "saya pilih / putuskan / akan / mau". Bukan plain reminder
+- Belief: pernyataan prinsip ("Saya percaya..." / "Yang penting adalah...")
+
+Catatan Hady:
+"""${text}"""`;
+
+  const res = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.1,
+    max_tokens: 800,
+    response_format: { type: "json_object" },
+  });
+  const raw = res.choices[0]?.message?.content?.trim() || "{}";
+  try {
+    const p = JSON.parse(raw);
+    return {
+      people: Array.isArray(p.people) ? p.people : [],
+      projects: Array.isArray(p.projects) ? p.projects : [],
+      events: Array.isArray(p.events) ? p.events : [],
+      decisions: Array.isArray(p.decisions) ? p.decisions : [],
+      beliefs: Array.isArray(p.beliefs) ? p.beliefs : [],
+    };
+  } catch {
+    return { people: [], projects: [], events: [], decisions: [], beliefs: [] };
+  }
+};
+
 export const formatScheduleAnswer = async (question, label, items) => {
   const prompt = `Kamu Aegis — asisten pribadi Hady. Hady bertanya: "${question}"
 

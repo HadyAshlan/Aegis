@@ -7,6 +7,7 @@ import { writeFile, listFolder, readText } from "./lib/store.js";
 import { analyze } from "./lib/groq.js";
 import { addReminder, dueReminders, markNotified, listActive, removeReminder } from "./lib/reminders.js";
 import { answerSchedule } from "./lib/query.js";
+import { distill } from "./lib/distill.js";
 import { nowJakarta, formatFriendly } from "./lib/time.js";
 
 const REQUIRED = [
@@ -67,6 +68,27 @@ const extractBody = (md) => {
   const m = md.match(/^---[\s\S]*?---\s*([\s\S]*)$/);
   return (m ? m[1] : md).trim();
 };
+
+bot.command("distill", async (ctx) => {
+  await ctx.reply("🧠 Distill jalan... baca inbox & ekstrak entitas.");
+  try {
+    const res = await distill();
+    if (res.processed === 0) return ctx.reply("📭 Inbox kosong. Tidak ada yang di-distill.");
+    const t = res.totals;
+    await ctx.reply(
+      `✅ Distill ${res.processed} catatan.\n\n` +
+      `👤 Orang: +${t.people}\n` +
+      `📦 Project: +${t.projects}\n` +
+      `📅 Event: +${t.events}\n` +
+      `⚖️ Decision: +${t.decisions}\n` +
+      `💡 Belief: +${t.beliefs}\n\n` +
+      `🗄️ ${res.archived.length} file dipindah ke arsip.`
+    );
+  } catch (err) {
+    console.error("distill error:", err);
+    await ctx.reply(`❌ Gagal distill: ${err.message}`);
+  }
+});
 
 bot.command("scan", async (ctx) => {
   await ctx.reply("🔍 Scan inbox... tunggu sebentar.");
@@ -198,6 +220,35 @@ const checkLoop = async () => {
 
 setInterval(checkLoop, 60_000);
 setTimeout(checkLoop, 5_000);
+
+// Daily distill scheduler — jam 23:00 WIB
+let distillLastRunDate = null;
+const distillLoop = async () => {
+  try {
+    const n = nowJakarta();
+    const hour = n.iso.slice(11, 13);
+    const minute = n.iso.slice(14, 16);
+    if (hour === "23" && minute === "00" && distillLastRunDate !== n.date) {
+      distillLastRunDate = n.date;
+      console.log("nightly distill triggered");
+      const res = await distill();
+      if (res.processed > 0) {
+        const t = res.totals;
+        await bot.telegram.sendMessage(
+          OWNER_ID,
+          `🌙 *Distill malam ini*\n` +
+          `📥 ${res.processed} catatan diproses\n` +
+          `👤 +${t.people} • 📦 +${t.projects} • 📅 +${t.events}\n` +
+          `⚖️ +${t.decisions} • 💡 +${t.beliefs}`,
+          { parse_mode: "Markdown" }
+        );
+      }
+    }
+  } catch (err) {
+    console.error("distillLoop error:", err.message);
+  }
+};
+setInterval(distillLoop, 60_000);
 
 bot.catch((err) => console.error("Bot error:", err));
 bot.launch().then(() => console.log("Aegis bot v0.3 running"));

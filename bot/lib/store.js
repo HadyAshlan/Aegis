@@ -59,3 +59,13 @@ export const readText = async (path) => {
   const f = await getFile(path);
   return f ? f.content : null;
 };
+
+export const deleteFile = async (path, message) => {
+  const existing = await getFile(path);
+  if (!existing) return false;
+  await gh.repos.deleteFile({
+    owner: GITHUB_OWNER, repo: GITHUB_REPO, branch: GITHUB_BRANCH,
+    path, message, sha: existing.sha,
+  });
+  return true;
+};
