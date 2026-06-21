@@ -1,9 +1,18 @@
 {
   "schema": "owner",
   "version": 1,
-  "name": null,
-  "role": null,
-  "businesses": [],
-  "context_facts": [],
-  "last_updated": null
+  "name": "Hady",
+  "role": "bisnis owner",
+  "businesses": [
+    "M44",
+    "M53",
+    "bajaj",
+    "Aegis"
+  ],
+  "context_facts": [
+    "M44 ada 11 Unit",
+    "M53 ada 11 unit",
+    "bajaj hanya operasional saja"
+  ],
+  "last_updated": "2026-06-21"
 }
