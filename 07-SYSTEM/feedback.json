@@ -6,6 +6,13 @@
       "rating": "up",
       "source": "recall",
       "model": null
+    },
+    {
+      "ts": "2026-06-21 17:43:20 WIB",
+      "message_id": 56,
+      "rating": "up",
+      "source": "brain",
+      "model": null
     }
   ]
 }
