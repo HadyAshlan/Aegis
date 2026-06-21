@@ -1,0 +1,79 @@
+// Layer 3 — Recall: jawab pertanyaan pakai memory terstruktur, bukan raw inbox.
+
+import { readJSON } from "./store.js";
+import { aiCall } from "./ai.js";
+import { listActive } from "./reminders.js";
+import { nowJakarta, formatFriendly } from "./time.js";
+
+const MEM = {
+  people: "07-SYSTEM/memory/people.json",
+  projects: "07-SYSTEM/memory/projects.json",
+  events: "07-SYSTEM/memory/events.json",
+  decisions: "07-SYSTEM/memory/decisions.json",
+  beliefs: "07-SYSTEM/memory/beliefs.json",
+};
+
+// Filter naive — keyword match (ringan, hemat token)
+const matchAny = (haystack, needles) =>
+  needles.some(n => haystack.toLowerCase().includes(n.toLowerCase()));
+
+const filterByKeywords = (items, keywords, fields) => {
+  if (!keywords || keywords.length === 0) return items.slice(0, 20); // cap default
+  return items.filter(it => {
+    const text = fields.map(f => JSON.stringify(it[f] || "")).join(" ");
+    return matchAny(text, keywords);
+  }).slice(0, 20);
+};
+
+const tokenize = (q) => (q || "")
+  .toLowerCase()
+  .replace(/[^a-z0-9\s]/g, " ")
+  .split(/\s+/)
+  .filter(w => w.length >= 3 && !["dan", "yang", "apa", "saya", "ada", "ini", "itu", "kah"].includes(w));
+
+export const answerCatatan = async (question) => {
+  const today = nowJakarta();
+
+  const [peopleDoc, projDoc, eventDoc, decDoc, belDoc, reminders] = await Promise.all([
+    readJSON(MEM.people, { people: [] }),
+    readJSON(MEM.projects, { projects: [] }),
+    readJSON(MEM.events, { events: [] }),
+    readJSON(MEM.decisions, { decisions: [] }),
+    readJSON(MEM.beliefs, { beliefs: [] }),
+    listActive(),
+  ]);
+
+  const keywords = tokenize(question);
+
+  const ctx = {
+    people: filterByKeywords(peopleDoc.people, keywords, ["name", "role", "context", "notes", "aliases"]),
+    projects: filterByKeywords(projDoc.projects, keywords, ["name", "notes", "status"]),
+    events: filterByKeywords(eventDoc.events, keywords, ["event", "involves", "project"]),
+    decisions: filterByKeywords(decDoc.decisions, keywords, ["decision", "reason"]),
+    beliefs: filterByKeywords(belDoc.beliefs, keywords, ["belief"]),
+    reminders_aktif: reminders.slice(0, 10).map(r => ({
+      event: r.event, kapan: formatFriendly(r.datetime_iso),
+    })),
+  };
+
+  const isEmpty = Object.values(ctx).every(arr => arr.length === 0);
+
+  const prompt = `Kamu Aegis — asisten pribadi Hady. Hari ini ${today.iso}.
+
+Hady bertanya: "${question}"
+
+Memori relevan (terstruktur, hasil distill catatan-catatan Hady):
+${JSON.stringify(ctx, null, 2)}
+
+${isEmpty ? "MEMORI KOSONG untuk pertanyaan ini." : ""}
+
+Tugas:
+- Jawab Hady langsung dalam Bahasa Indonesia santai-sopan, panggil "Pak".
+- Maksimal 4 kalimat. Boleh sebutkan fakta dari memori di atas.
+- KALAU memori tidak punya jawaban → jujur bilang "saya belum punya catatan soal itu" dan saran apa yang bisa Bapak catat.
+- Jangan mengarang. Hanya pakai fakta yang ada di memori.
+- Maks 1 emoji.`;
+
+  const { content } = await aiCall("reason", { prompt, temperature: 0.3, max_tokens: 350 });
+  return content || "Maaf Pak, ada masalah saat menjawab.";
+};

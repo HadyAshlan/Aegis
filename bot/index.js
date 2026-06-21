@@ -8,6 +8,9 @@ import { analyze } from "./lib/groq.js";
 import { addReminder, dueReminders, markNotified, listActive, removeReminder } from "./lib/reminders.js";
 import { answerSchedule } from "./lib/query.js";
 import { distill } from "./lib/distill.js";
+import { answerCatatan } from "./lib/recall.js";
+import { weeklyReflect } from "./lib/reflect.js";
+import { recordFeedback, summary as feedbackSummary } from "./lib/feedback.js";
 import { nowJakarta, formatFriendly } from "./lib/time.js";
 
 const REQUIRED = [
@@ -23,6 +26,16 @@ const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 // In-memory pending confirmation (chat_id → pending action)
 const pending = new Map();
+
+// Inline keyboard untuk feedback 👍/👎
+const fbKeyboard = (source) => ({
+  reply_markup: {
+    inline_keyboard: [[
+      { text: "👍 Bagus", callback_data: `fb:up:${source}` },
+      { text: "👎 Kurang", callback_data: `fb:down:${source}` },
+    ]],
+  },
+});
 
 const saveToFile = async (folder, text, meta) => {
   const { date, time, iso } = nowJakarta();
@@ -44,8 +57,14 @@ bot.start((ctx) => ctx.reply(
   "✅ Aegis aktif.\n\n" +
   "Saya baca tiap pesan & klasifikasi:\n" +
   "• Penting → simpan & kalau ada jadwal saya konfirmasi dulu\n" +
-  "• Test/noise → simpan ke arsip (tidak ganggu)\n\n" +
-  "Command: /list /hapus /ping"
+  "• Test/noise → simpan ke arsip (tidak ganggu)\n" +
+  "• Pertanyaan → saya jawab dari memori\n\n" +
+  "Command:\n" +
+  "/list • /hapus <id> — kelola pengingat\n" +
+  "/distill • /scan — proses inbox\n" +
+  "/refleksi — refleksi mingguan\n" +
+  "/feedback — ringkasan feedback\n" +
+  "/ping — cek bot"
 ));
 
 bot.command("ping", (ctx) => ctx.reply("pong"));
@@ -87,6 +106,48 @@ bot.command("distill", async (ctx) => {
   } catch (err) {
     console.error("distill error:", err);
     await ctx.reply(`❌ Gagal distill: ${err.message}`);
+  }
+});
+
+bot.command("refleksi", async (ctx) => {
+  await ctx.reply("🪞 Bikin refleksi minggu ini... tunggu sebentar.");
+  try {
+    const res = await weeklyReflect();
+    if (res.skipped) return ctx.reply(`📭 ${res.reason}`);
+    await ctx.reply(`📝 Refleksi siap → ${res.path}\n\n${res.snippet}${res.snippet.length >= 500 ? "..." : ""}`);
+  } catch (err) {
+    console.error("refleksi error:", err);
+    await ctx.reply(`❌ Gagal: ${err.message}`);
+  }
+});
+
+bot.command("feedback", async (ctx) => {
+  try {
+    const s = await feedbackSummary();
+    if (s.total === 0) return ctx.reply("📭 Belum ada feedback.");
+    const lines = Object.entries(s.bySource).map(([src, c]) =>
+      `• ${src}: 👍 ${c.up} | 👎 ${c.down}`);
+    await ctx.reply(`📊 Feedback (total ${s.total})\n👍 ${s.up} | 👎 ${s.down}\n\n${lines.join("\n")}`);
+  } catch (err) {
+    await ctx.reply(`❌ Gagal: ${err.message}`);
+  }
+});
+
+// Handler tombol feedback inline
+bot.on("callback_query", async (ctx) => {
+  const data = ctx.callbackQuery.data || "";
+  if (!data.startsWith("fb:")) return;
+  const [, rating, source] = data.split(":");
+  try {
+    await recordFeedback({
+      message_id: ctx.callbackQuery.message.message_id,
+      rating, source,
+    });
+    await ctx.answerCbQuery(rating === "up" ? "Makasih, Pak 👍" : "Catat, akan saya perbaiki.");
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+  } catch (err) {
+    console.error("feedback error:", err);
+    await ctx.answerCbQuery("Gagal catat feedback.");
   }
 });
 
@@ -156,15 +217,18 @@ bot.on("text", async (ctx) => {
     // 1. Analisis pesan
     const a = await analyze(text);
 
-    // 1b. Tanya jadwal → jawab dari reminders (natural via Groq)
+    // 1b. Tanya jadwal → jawab dari reminders (natural via Groq) + feedback
     if (a.intent === "tanya_jadwal") {
       const answer = await answerSchedule(text, a.date_range);
-      return ctx.reply(answer);
+      await ctx.reply(answer, fbKeyboard("schedule"));
+      return;
     }
 
-    // 1c. Tanya catatan (versi awal: belum dukung full search inbox)
+    // 1c. Tanya catatan → recall dari memory terstruktur (Layer 3)
     if (a.intent === "tanya_catatan") {
-      return ctx.reply("🔎 Fitur cari catatan belum aktif. Sebentar lagi saya bangun (Memory Bank).");
+      const answer = await answerCatatan(text);
+      const sent = await ctx.reply(answer, fbKeyboard("recall"));
+      return;
     }
 
     // 2. Test/noise → archive silent (tidak balas)
@@ -249,6 +313,36 @@ const distillLoop = async () => {
   }
 };
 setInterval(distillLoop, 60_000);
+
+// Weekly reflect scheduler — Minggu 19:00 WIB
+let reflectLastRunWeek = null;
+const reflectLoop = async () => {
+  try {
+    const now = new Date();
+    const jakartaStr = now.toLocaleString("en-US", { timeZone: "Asia/Jakarta", hour12: false });
+    const j = new Date(jakartaStr);
+    const dow = j.getDay(); // 0 = Sunday
+    const hh = j.getHours();
+    const mm = j.getMinutes();
+    if (dow === 0 && hh === 19 && mm === 0) {
+      const wkKey = `${j.getFullYear()}-${Math.ceil((j.getDate() + 6) / 7)}`;
+      if (reflectLastRunWeek === wkKey) return;
+      reflectLastRunWeek = wkKey;
+      console.log("weekly reflect triggered");
+      const res = await weeklyReflect();
+      if (!res.skipped) {
+        await bot.telegram.sendMessage(
+          OWNER_ID,
+          `🪞 *Refleksi minggu ${res.week}*\n\n${res.snippet}${res.snippet.length >= 500 ? "...\n\n📄 Lengkap di vault." : ""}`,
+          { parse_mode: "Markdown", ...fbKeyboard("reflect") }
+        );
+      }
+    }
+  } catch (err) {
+    console.error("reflectLoop error:", err.message);
+  }
+};
+setInterval(reflectLoop, 60_000);
 
 bot.catch((err) => console.error("Bot error:", err));
 bot.launch().then(() => console.log("Aegis bot v0.3 running"));
