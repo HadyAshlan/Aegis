@@ -1,10 +1,10 @@
-// Aegis Bot v0.2 — capture + smart reminder
+// Aegis Bot v0.3 — smart capture: classify → confirm → save
 // Env wajib: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
 //            GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GROQ_API_KEY
 
 import { Telegraf } from "telegraf";
 import { writeFile } from "./lib/store.js";
-import { parseSchedule } from "./lib/groq.js";
+import { analyze } from "./lib/groq.js";
 import { addReminder, dueReminders, markNotified, listActive, removeReminder } from "./lib/reminders.js";
 import { nowJakarta, formatFriendly } from "./lib/time.js";
 
@@ -19,27 +19,31 @@ for (const k of REQUIRED) {
 const OWNER_ID = String(process.env.TELEGRAM_CHAT_ID);
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
-const saveToInbox = async (text) => {
+// In-memory pending confirmation (chat_id → pending action)
+const pending = new Map();
+
+const saveToFile = async (folder, text, meta) => {
   const { date, time, iso } = nowJakarta();
-  const path = `00-INBOX/${date}-${time}.md`;
-  const body = `---\ncreated: ${iso}\nsource: telegram\n---\n\n${text}\n`;
-  await writeFile(path, body, `inbox: ${date}-${time}`);
+  const path = `${folder}/${date}-${time}.md`;
+  const front = Object.entries({ created: iso, source: "telegram", ...meta })
+    .map(([k, v]) => `${k}: ${v}`).join("\n");
+  const body = `---\n${front}\n---\n\n${text}\n`;
+  await writeFile(path, body, `${folder}: ${date}-${time}`);
   return path;
 };
 
-// Guard: hanya Hady yang boleh
+// Guard
 bot.use(async (ctx, next) => {
-  if (String(ctx.from?.id) !== OWNER_ID) {
-    console.warn(`Blocked: ${ctx.from?.id} (${ctx.from?.username})`);
-    return;
-  }
+  if (String(ctx.from?.id) !== OWNER_ID) return;
   return next();
 });
 
 bot.start((ctx) => ctx.reply(
   "✅ Aegis aktif.\n\n" +
-  "Kirim pesan apa pun → saya catat ke vault.\n" +
-  "Kalau ada tanggal/waktu → otomatis saya jadwalkan pengingat."
+  "Saya baca tiap pesan & klasifikasi:\n" +
+  "• Penting → simpan & kalau ada jadwal saya konfirmasi dulu\n" +
+  "• Test/noise → simpan ke arsip (tidak ganggu)\n\n" +
+  "Command: /list /hapus /ping"
 ));
 
 bot.command("ping", (ctx) => ctx.reply("pong"));
@@ -68,32 +72,64 @@ bot.command("hapus", async (ctx) => {
   }
 });
 
+const handleConfirmation = async (ctx, text) => {
+  const p = pending.get(ctx.from.id);
+  if (!p) return false;
+  const normalized = text.toLowerCase().trim();
+  if (!/^(ya|y|yes|ok|oke|tidak|t|no|batal|skip)$/i.test(normalized)) return false;
+  pending.delete(ctx.from.id);
+  if (/^(tidak|t|no|batal|skip)$/i.test(normalized)) {
+    const path = await saveToFile("00-INBOX", p.source, { importance: p.importance, category: p.category });
+    return ctx.reply(`✅ Tidak dijadwalkan, tercatat ke inbox → ${path}`);
+  }
+  // ya
+  const { id, friendly } = await addReminder({
+    datetime_iso: p.datetime_iso, event: p.event, source: p.source,
+  });
+  return ctx.reply(`⏰ Dijadwalkan\n📝 ${p.event}\n📅 ${friendly}\n🔖 ${id}`);
+};
+
 bot.on("text", async (ctx) => {
   const text = ctx.message.text.trim();
   try {
-    // Coba parse jadwal dulu
-    const parsed = await parseSchedule(text);
+    // 0. Cek apakah ini balasan konfirmasi pending
+    if (await handleConfirmation(ctx, text)) return;
 
-    if (parsed.has_schedule && parsed.datetime_iso && parsed.event) {
-      const { id, friendly } = await addReminder({
-        datetime_iso: parsed.datetime_iso,
-        event: parsed.event,
-        source: text,
-      });
-      await ctx.reply(`⏰ Pengingat dijadwalkan\n📝 ${parsed.event}\n📅 ${friendly}\n🔖 ID: ${id}`);
-      return;
+    // 1. Analisis pesan
+    const a = await analyze(text);
+
+    // 2. Test/noise → archive, jangan ganggu
+    if (a.category === "test" || a.category === "noise" || a.importance === "P3") {
+      const path = await saveToFile("06-ARCHIVE/test", text, { importance: a.importance, category: a.category, reason: a.reason });
+      return ctx.reply(`🗑️ Disimpan ke arsip [${a.category}/${a.importance}].`);
     }
 
-    // Bukan jadwal → catat ke inbox biasa
-    const path = await saveToInbox(text);
-    await ctx.reply(`✅ Tercatat → ${path}`);
+    // 3. Ada jadwal → minta konfirmasi dulu
+    if (a.has_schedule && a.datetime_iso && a.event) {
+      pending.set(ctx.from.id, {
+        source: text, event: a.event, datetime_iso: a.datetime_iso,
+        importance: a.importance, category: a.category,
+      });
+      return ctx.reply(
+        `🤖 Mau saya jadwalkan?\n\n` +
+        `📝 ${a.event}\n` +
+        `📅 ${formatFriendly(a.datetime_iso)}\n` +
+        `⚡ Prioritas: ${a.importance}\n\n` +
+        `Balas: *ya* / *tidak*`,
+        { parse_mode: "Markdown" }
+      );
+    }
+
+    // 4. Penting tapi tanpa jadwal → simpan ke inbox
+    const path = await saveToFile("00-INBOX", text, { importance: a.importance, category: a.category });
+    return ctx.reply(`✅ Tercatat [${a.category}/${a.importance}] → ${path}`);
   } catch (err) {
     console.error("handle text error:", err);
     await ctx.reply(`❌ Gagal: ${err.message}`);
   }
 });
 
-// Scheduler: cek reminders tiap 60 detik
+// Scheduler reminder tiap 60 detik
 const checkLoop = async () => {
   try {
     const due = await dueReminders();
@@ -102,7 +138,7 @@ const checkLoop = async () => {
     for (const r of due) {
       await bot.telegram.sendMessage(
         OWNER_ID,
-        `🔔 Pengingat\n📝 ${r.event}\n📅 ${formatFriendly(r.datetime_iso)}\n\n_Pesan asli:_\n${r.source}`,
+        `🔔 *Pengingat*\n📝 ${r.event}\n📅 ${formatFriendly(r.datetime_iso)}\n\n_Pesan asli:_\n${r.source}`,
         { parse_mode: "Markdown" }
       );
       ids.push(r.id);
@@ -114,10 +150,10 @@ const checkLoop = async () => {
 };
 
 setInterval(checkLoop, 60_000);
-setTimeout(checkLoop, 5_000); // cek sekali di awal
+setTimeout(checkLoop, 5_000);
 
 bot.catch((err) => console.error("Bot error:", err));
-bot.launch().then(() => console.log("Aegis bot v0.2 running"));
+bot.launch().then(() => console.log("Aegis bot v0.3 running"));
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
