@@ -113,7 +113,7 @@ Output: {
 
 Catatan: """${text}"""`;
 
-  const { content } = await aiCall("analyze", { prompt, temperature: 0.1, max_tokens: 800, json: true });
+  const { content } = await aiCall("senior", { prompt, temperature: 0.1, max_tokens: 800, json: true });
   const p = safeJSON(content, {});
   return {
     owner_profile: p.owner_profile && typeof p.owner_profile === "object" ? p.owner_profile : null,
