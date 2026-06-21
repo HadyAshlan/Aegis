@@ -83,6 +83,6 @@ Tugas:
 - Jangan mengarang. Hanya pakai fakta yang ada di memori.
 - Maks 1 emoji.`;
 
-  const { content } = await aiCall("reason", { prompt, temperature: 0.3, max_tokens: 350 });
+  const { content } = await aiCall("senior", { prompt, temperature: 0.3, max_tokens: 400 });
   return content || "Maaf Pak, ada masalah saat menjawab.";
 };

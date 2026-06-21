@@ -113,6 +113,6 @@ ${items.length === 0 ? "(kosong)" : items.map((r, i) => `${i + 1}. ${r.event} â€
 
 Tugas: jawab Hady singkat, natural, Bahasa Indonesia santai tapi sopan (panggil "Pak"). Maks 3 kalimat. Sebut detail tanggal/jam kalau ada. Kalau kosong, kasih tahu santai. Jangan format daftar bernomor kalau cuma 1-2 item. Maks 1 emoji.`;
 
-  const { content } = await aiCall("fast", { prompt, temperature: 0.4, max_tokens: 250 });
+  const { content } = await aiCall("senior", { prompt, temperature: 0.4, max_tokens: 300 });
   return content || "Maaf Pak, ada masalah saat menyusun jawaban.";
 };
