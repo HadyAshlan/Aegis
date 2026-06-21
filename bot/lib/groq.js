@@ -81,14 +81,35 @@ Output STRICT JSON, tanpa code fence. Schema:
 }
 
 Aturan:
-- Kalau kategori kosong → field array kosong [] atau object dengan field null
-- Jangan force — kalau tidak yakin, skip
-- owner_profile: HANYA kalau pesan berisi info tentang DIRI HADY SENDIRI ("saya owner X", "saya Hady", "bisnis saya Y"). Kalau tidak, semua field null/[].
-- people: orang LAIN yang Hady sebut. JANGAN masukkan Hady sendiri.
-- Project = topik kerja besar / bisnis (mis. reguler-fleet, bajaj, dll)
+- Kalau kategori kosong → field array kosong []
+- owner_profile: WAJIB diisi kalau pesan mulai dengan "Saya..." atau berisi info tentang Hady sendiri (nama, role, bisnis yang dimiliki, fakta diri). HARUS ekstrak agresif.
+- people: orang LAIN. JANGAN masukkan Hady sendiri.
+- Project = topik kerja besar / bisnis (mis. M44, M53, bajaj, reguler-fleet, Aegis, dst)
 - Event butuh tanggal/waktu eksplisit
 - Decision butuh kata "saya pilih/putuskan/akan/mau"
-- Belief = pernyataan prinsip ("Saya percaya...", "Yang penting...")
+- Belief = pernyataan prinsip
+
+CONTOH:
+Input: "Saya Hady, owner armada M44 (11 unit), M53 (11 unit), bajaj operasional, pemilik Aegis."
+Output: {
+  "owner_profile": {"name": "Hady", "role": "owner armada / business owner", "businesses": ["M44", "M53", "bajaj", "Aegis"], "facts": ["M44 punya 11 unit", "M53 punya 11 unit", "bajaj untuk operasional"]},
+  "people": [],
+  "projects": [
+    {"name": "M44", "status": "aktif", "notes": ["11 unit"]},
+    {"name": "M53", "status": "aktif", "notes": ["11 unit"]},
+    {"name": "bajaj", "status": "aktif", "notes": ["operasional"]},
+    {"name": "Aegis", "status": "aktif", "notes": []}
+  ],
+  "events": [], "decisions": [], "beliefs": []
+}
+
+Input: "Besok meeting bank BCA jam 10"
+Output: {
+  "owner_profile": null,
+  "people": [], "projects": [],
+  "events": [{"datetime_iso": "...", "event": "Meeting bank BCA", "involves": [], "project": null}],
+  "decisions": [], "beliefs": []
+}
 
 Catatan: """${text}"""`;
 

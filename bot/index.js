@@ -253,10 +253,28 @@ bot.on("text", async (ctx) => {
       );
     }
 
-    // 4. Penting tapi tanpa jadwal → simpan ke inbox + langsung distill (memory real-time)
+    // 4. Penting tapi tanpa jadwal → simpan ke inbox + BLOCKING distill (visible feedback)
     const inboxPath = await saveToFile("00-INBOX", text, { importance: a.importance, category: a.category });
-    distillText(text, inboxPath.split("/").pop())
-      .catch(e => console.error("inline distill error:", e.message));
+    let extracted;
+    try {
+      extracted = await distillText(text, inboxPath.split("/").pop());
+    } catch (err) {
+      console.error("inline distill error:", err);
+      await ctx.reply(`📝 Tercatat ke inbox.\n⚠️ Distill error: ${err.message}`);
+      return;
+    }
+    if (extracted) {
+      const parts = [];
+      if (extracted.owner) parts.push("profil owner");
+      if (extracted.people) parts.push(`${extracted.people} orang`);
+      if (extracted.projects) parts.push(`${extracted.projects} project`);
+      if (extracted.events) parts.push(`${extracted.events} event`);
+      if (extracted.decisions) parts.push(`${extracted.decisions} keputusan`);
+      if (extracted.beliefs) parts.push(`${extracted.beliefs} belief`);
+      if (parts.length > 0) {
+        await ctx.reply(`🧠 Dipelajari: ${parts.join(", ")}.`);
+      }
+    }
     return;
   } catch (err) {
     console.error("handle text error:", err);
