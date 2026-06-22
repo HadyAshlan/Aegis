@@ -1,6 +1,6 @@
 // Tool registry — versi Workers.
 
-import { writeFile, readJSON, listFolder, readText } from "./store.js";
+import { writeFile, writeJSON, readJSON, listFolder, readText } from "./store.js";
 import { addReminder, listActive, removeReminder } from "./reminders.js";
 import { distillText } from "./distill.js";
 import { nowJakarta, formatFriendly } from "./time.js";
@@ -26,6 +26,24 @@ export const TOOL_SCHEMA = [
   { name: "learn_skill", description: "Aegis riset topik baru via web, simpan jadi skill permanen di 07-SYSTEM/skills/<name>.md. Pakai saat user bilang 'pelajari X' atau 'jadikan kamu ahli Y'.", params: { topic: "nama topik (singkat)", focus: "fokus spesifik yang user mau (opsional)" } },
   { name: "list_skills", description: "Lihat daftar skill yang sudah Aegis pelajari", params: {} },
   { name: "use_skill", description: "Load isi skill spesifik untuk reasoning lanjut (kalau Aegis butuh detail lebih)", params: { name: "nama skill" } },
+
+  // === Reasoning lanjutan ===
+  { name: "analyze_text", description: "Analisa teks dari berbagai sudut (sentimen, struktur, argumen, missing info, dll)", params: { text: "teks", focus: "sudut analisa (opsional)" } },
+  { name: "decompose_task", description: "Pecah task kompleks jadi sub-tasks konkret. Untuk perencanaan multi-step.", params: { task: "deskripsi task" } },
+  { name: "evaluate_decision", description: "Bantu Hady evaluasi keputusan: pro/con, risiko, biaya peluang, asumsi.", params: { decision: "deskripsi pilihan", context: "konteks (opsional)" } },
+  { name: "summarize", description: "Ringkas teks panjang jadi poin-poin utama.", params: { text: "teks panjang", max_words: "angka (opsional)" } },
+  { name: "translate", description: "Terjemahin teks antar bahasa.", params: { text: "teks", target: "id|en|zh|ar|..." } },
+
+  // === Math & finance ===
+  { name: "calculate", description: "Hitung ekspresi matematika (mis '15000 * 11 + 8000 * 11'). JANGAN pakai untuk fakta umum.", params: { expression: "string ekspresi" } },
+  { name: "financial_calc", description: "Hitung finansial: ROI, BEP, payback period, simple/compound interest.", params: { operation: "roi|bep|payback|simple_interest|compound_interest", params: "object dengan angka relevan" } },
+
+  // === Memory expansion ===
+  { name: "record_decision", description: "Catat keputusan Hady permanen ke memory (decisions.json).", params: { decision: "apa yg diputuskan", reason: "alasan", alternatives: "pilihan lain yg ditolak (opsional)" } },
+  { name: "record_belief", description: "Catat prinsip/belief Hady permanen ke memory (beliefs.json).", params: { belief: "pernyataan prinsip" } },
+
+  // === Introspeksi ===
+  { name: "aegis_status", description: "Aegis lapor status diri: memory size, skill count, last activity, AI quota.", params: {} },
 ];
 
 const J = (obj) => JSON.stringify(obj);
@@ -260,6 +278,166 @@ Tulis kaya, padat, dan to-the-point. Maks 800 kata.`;
         const content = await readText(env, `07-SYSTEM/skills/${slug}.md`);
         if (!content) return J({ error: `skill "${slug}" belum ada. Coba learn_skill dulu.` });
         return J({ ok: true, skill: slug, content: content.slice(0, 6000) });
+      }
+
+      // === Reasoning lanjutan (AI-powered) ===
+      case "analyze_text": {
+        if (!params.text) return J({ error: "text wajib" });
+        const prompt = `Analisa teks berikut${params.focus ? ` dengan fokus: ${params.focus}` : ""}.\n\nTeks:\n"""${params.text.slice(0, 4000)}"""\n\nFormat output: 4-6 bullet point insight tajam (sentimen, struktur, argumen kunci, missing info, kontradiksi, dll). Bahasa Indonesia.`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 600 });
+        return J({ ok: true, analysis: content });
+      }
+      case "decompose_task": {
+        if (!params.task) return J({ error: "task wajib" });
+        const prompt = `Pecah task ini jadi 4-8 sub-task konkret yang bisa dieksekusi berurutan. Setiap sub-task: 1 baris, mulai dengan kata kerja, estimasi waktu kalau relevan.\n\nTask: ${params.task}\n\nFormat Markdown numbered list.`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 500 });
+        return J({ ok: true, breakdown: content });
+      }
+      case "evaluate_decision": {
+        if (!params.decision) return J({ error: "decision wajib" });
+        const prompt = `Bantu Pak Hady evaluasi keputusan ini${params.context ? ` (konteks: ${params.context})` : ""}.\n\nKeputusan: ${params.decision}\n\nFormat (Markdown, total 250 kata max):\n## ✅ Pro\n## ⚠️ Con\n## 🔍 Risiko Utama\n## 💰 Biaya Peluang\n## 🤔 Asumsi yang Perlu Dicek\n## 💡 Saran Saya`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.4, max_tokens: 700 });
+        return J({ ok: true, evaluation: content });
+      }
+      case "summarize": {
+        if (!params.text) return J({ error: "text wajib" });
+        const max = params.max_words || 100;
+        const prompt = `Ringkas teks ini dalam ${max} kata maksimal, bahasa Indonesia, pertahankan poin utama:\n\n"""${params.text.slice(0, 6000)}"""`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.2, max_tokens: 400 });
+        return J({ ok: true, summary: content });
+      }
+      case "translate": {
+        if (!params.text || !params.target) return J({ error: "text & target wajib" });
+        const targets = { id: "Bahasa Indonesia", en: "English", zh: "中文", ar: "العربية", ja: "日本語", ms: "Bahasa Melayu" };
+        const t = targets[params.target] || params.target;
+        const prompt = `Terjemahin ke ${t} (natural, bukan word-by-word):\n\n"""${params.text.slice(0, 4000)}"""`;
+        const { content } = await aiCall(env, "fast", { prompt, temperature: 0.2, max_tokens: 600 });
+        return J({ ok: true, translation: content });
+      }
+
+      // === Math & finance ===
+      case "calculate": {
+        if (!params.expression) return J({ error: "expression wajib" });
+        // Safe eval: hanya angka, operator, kurung
+        const expr = String(params.expression).replace(/[^0-9+\-*/().%\s]/g, "");
+        if (!expr) return J({ error: "ekspresi tidak valid" });
+        try {
+          const result = Function(`"use strict"; return (${expr})`)();
+          if (typeof result !== "number" || !isFinite(result)) return J({ error: "hasil tidak valid" });
+          return J({ ok: true, expression: expr, result, formatted: result.toLocaleString("id-ID") });
+        } catch (err) { return J({ error: `parse fail: ${err.message}` }); }
+      }
+      case "financial_calc": {
+        const { operation } = params;
+        const p = params.params || {};
+        try {
+          let result, note;
+          switch (operation) {
+            case "roi": {
+              // (return - investment) / investment * 100
+              const { investment, return: ret } = p;
+              if (!investment || ret === undefined) return J({ error: "butuh investment & return" });
+              result = ((ret - investment) / investment) * 100;
+              note = `ROI = ${result.toFixed(2)}%`;
+              break;
+            }
+            case "bep": {
+              // BEP units = fixed_cost / (price - variable_cost)
+              const { fixed_cost, price, variable_cost } = p;
+              if (fixed_cost === undefined || !price || variable_cost === undefined) return J({ error: "butuh fixed_cost, price, variable_cost" });
+              const margin = price - variable_cost;
+              if (margin <= 0) return J({ error: "margin per unit ≤ 0 — tidak mungkin BEP" });
+              result = fixed_cost / margin;
+              note = `BEP = ${Math.ceil(result)} unit (margin per unit: Rp ${margin.toLocaleString("id-ID")})`;
+              break;
+            }
+            case "payback": {
+              const { investment, annual_cashflow } = p;
+              if (!investment || !annual_cashflow) return J({ error: "butuh investment & annual_cashflow" });
+              result = investment / annual_cashflow;
+              note = `Payback period = ${result.toFixed(2)} tahun`;
+              break;
+            }
+            case "simple_interest": {
+              const { principal, rate, years } = p; // rate dalam persen
+              if (!principal || !rate || !years) return J({ error: "butuh principal, rate, years" });
+              const interest = principal * (rate / 100) * years;
+              result = principal + interest;
+              note = `Bunga ${rate}% × ${years} thn → Rp ${interest.toLocaleString("id-ID")}, total Rp ${result.toLocaleString("id-ID")}`;
+              break;
+            }
+            case "compound_interest": {
+              const { principal, rate, years, compounds_per_year = 12 } = p;
+              if (!principal || !rate || !years) return J({ error: "butuh principal, rate, years" });
+              const n = compounds_per_year;
+              result = principal * Math.pow(1 + rate / 100 / n, n * years);
+              note = `Bunga majemuk → Rp ${result.toLocaleString("id-ID")} (selisih Rp ${(result - principal).toLocaleString("id-ID")})`;
+              break;
+            }
+            default:
+              return J({ error: `operation tidak dikenal: ${operation}` });
+          }
+          return J({ ok: true, operation, result, note });
+        } catch (err) { return J({ error: err.message }); }
+      }
+
+      // === Memory expansion ===
+      case "record_decision": {
+        if (!params.decision) return J({ error: "decision wajib" });
+        const today = nowJakarta();
+        const doc = await readJSON(env, "07-SYSTEM/memory/decisions.json", { schema: "decision", version: 1, decisions: [] });
+        const id = `dec_${Math.random().toString(36).slice(2, 8)}`;
+        doc.decisions.push({
+          id, date: today.date,
+          decision: params.decision,
+          reason: params.reason || "",
+          alternatives: params.alternatives || "",
+          source_file: "live-tool",
+        });
+        await writeJSON(env, "07-SYSTEM/memory/decisions.json", doc, `decision: ${params.decision.slice(0, 40)}`);
+        return J({ ok: true, id, decision: params.decision });
+      }
+      case "record_belief": {
+        if (!params.belief) return J({ error: "belief wajib" });
+        const today = nowJakarta();
+        const doc = await readJSON(env, "07-SYSTEM/memory/beliefs.json", { schema: "belief", version: 1, beliefs: [] });
+        const norm = (s) => (s || "").toLowerCase().trim();
+        if (doc.beliefs.some(b => norm(b.belief) === norm(params.belief))) {
+          return J({ ok: true, deduped: true });
+        }
+        const id = `bel_${Math.random().toString(36).slice(2, 8)}`;
+        doc.beliefs.push({ id, belief: params.belief, first_seen: today.date, status: "aktif" });
+        await writeJSON(env, "07-SYSTEM/memory/beliefs.json", doc, `belief: ${params.belief.slice(0, 40)}`);
+        return J({ ok: true, id, belief: params.belief });
+      }
+
+      // === Introspeksi ===
+      case "aegis_status": {
+        const [owner, people, projects, events, decisions, beliefs, reminders] = await Promise.all([
+          readJSON(env, "07-SYSTEM/memory/owner.json", {}),
+          readJSON(env, "07-SYSTEM/memory/people.json", { people: [] }),
+          readJSON(env, "07-SYSTEM/memory/projects.json", { projects: [] }),
+          readJSON(env, "07-SYSTEM/memory/events.json", { events: [] }),
+          readJSON(env, "07-SYSTEM/memory/decisions.json", { decisions: [] }),
+          readJSON(env, "07-SYSTEM/memory/beliefs.json", { beliefs: [] }),
+          listActive(env),
+        ]);
+        const skillsList = (await listFolder(env, "07-SYSTEM/skills").catch(() => [])).filter(f => f.name.endsWith(".md")).map(f => f.name.replace(/\.md$/, ""));
+        return J({
+          ok: true,
+          identity: { name: "Aegis", platform: "Cloudflare Workers", brain: "Groq compound + Z.AI GLM" },
+          memory: {
+            owner_known: !!owner?.name,
+            people_count: (people.people || []).length,
+            projects_active: (projects.projects || []).filter(p => p.status === "aktif").length,
+            events_total: (events.events || []).length,
+            decisions_total: (decisions.decisions || []).length,
+            beliefs_total: (beliefs.beliefs || []).length,
+            reminders_active: reminders.length,
+            skills_learned: skillsList.length,
+          },
+          skills: skillsList.slice(0, 20),
+        });
       }
 
       default:
