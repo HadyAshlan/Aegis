@@ -44,6 +44,11 @@ export const TOOL_SCHEMA = [
 
   // === Introspeksi ===
   { name: "aegis_status", description: "Aegis lapor status diri: memory size, skill count, last activity, AI quota.", params: {} },
+
+  // === Coding (Aegis tulis & jalankan code sendiri) ===
+  { name: "generate_code", description: "Aegis tulis code untuk task tertentu. Bisa simpan langsung ke file di vault.", params: { task: "deskripsi tugas", language: "python|javascript|html|sql|bash|...", save_to: "path file di vault (opsional, kalau mau disimpan)" } },
+  { name: "execute_python", description: "Eksekusi Python code via compound (sandbox aman). Output stdout/result. Untuk hitung kompleks, parse data, dll.", params: { code: "python code" } },
+  { name: "review_code", description: "Aegis review code yang ada — cari bug, suggest improvement, security issue.", params: { code: "string code", language: "bahasa kode", focus: "fokus review (opsional)" } },
 ];
 
 const J = (obj) => JSON.stringify(obj);
@@ -409,6 +414,40 @@ Tulis kaya, padat, dan to-the-point. Maks 800 kata.`;
         doc.beliefs.push({ id, belief: params.belief, first_seen: today.date, status: "aktif" });
         await writeJSON(env, "07-SYSTEM/memory/beliefs.json", doc, `belief: ${params.belief.slice(0, 40)}`);
         return J({ ok: true, id, belief: params.belief });
+      }
+
+      // === Coding ===
+      case "generate_code": {
+        if (!params.task) return J({ error: "task wajib" });
+        const lang = params.language || "javascript";
+        const prompt = `Tulis ${lang} code untuk task ini:\n\n${params.task}\n\nAturan:\n- Production-quality, clean, dengan komentar singkat di bagian non-trivial\n- Output HANYA code, tanpa penjelasan luar code\n- Wrap di code fence \`\`\`${lang} ... \`\`\``;
+        const { content } = await aiCall(env, "senior", { prompt, temperature: 0.2, max_tokens: 2000 });
+        // Extract code dari fence
+        const m = content.match(/```[\w]*\n([\s\S]*?)```/);
+        const code = m ? m[1].trim() : content.trim();
+        let saved = null;
+        if (params.save_to) {
+          await writeFile(env, params.save_to, code, `code: ${params.task.slice(0, 50)}`);
+          saved = params.save_to;
+        }
+        return J({ ok: true, language: lang, code: code.slice(0, 4000), saved });
+      }
+
+      case "execute_python": {
+        if (!params.code) return J({ error: "code wajib" });
+        // Pakai compound (Groq) yang punya built-in code execution Python
+        const prompt = `Jalankan Python code ini dan kasih outputnya (stdout + nilai akhir kalau ada). Pakai code execution toolmu.\n\n\`\`\`python\n${params.code}\n\`\`\`\n\nFormat: kasih hanya hasil eksekusi (stdout/return value), tidak perlu narasi.`;
+        const { content } = await aiCall(env, "senior", { prompt, temperature: 0.1, max_tokens: 2000 });
+        return J({ ok: true, output: content });
+      }
+
+      case "review_code": {
+        if (!params.code) return J({ error: "code wajib" });
+        const lang = params.language || "javascript";
+        const focus = params.focus || "bug, performance, readability, security";
+        const prompt = `Review ${lang} code berikut dengan fokus: ${focus}.\n\n\`\`\`${lang}\n${params.code.slice(0, 4000)}\n\`\`\`\n\nFormat (Markdown):\n## 🐛 Bug / Masalah\n## ⚡ Performance\n## 🧹 Readability\n## 🔒 Security\n## ✅ Saran Konkret\n\nKalau tidak ada masalah di section, skip. Max 300 kata.`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 800 });
+        return J({ ok: true, review: content });
       }
 
       // === Introspeksi ===
