@@ -9,7 +9,7 @@ import { listActive, removeReminder, dueReminders, markNotified } from "./lib/re
 import { distill } from "./lib/distill.js";
 import { weeklyReflect } from "./lib/reflect.js";
 import { recordFeedback, summary as feedbackSummary } from "./lib/feedback.js";
-import { aiCall } from "./lib/ai.js";
+import { aiCall, setAlertHandler } from "./lib/ai.js";
 import { generateAuthUrl, exchangeCode, createEvent as gcalCreate, isConfigured as gcalReady } from "./lib/google-calendar.js";
 import { generateMorningBrief, generateEveningRecap } from "./lib/briefings.js";
 import { detectAnomalies } from "./lib/anomaly.js";
@@ -28,6 +28,9 @@ for (const k of REQUIRED) {
 
 const OWNER_ID = String(process.env.TELEGRAM_CHAT_ID);
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+
+// Pasang quota alert handler — AI router lapor kalau compound mendekati/habis limit
+setAlertHandler((msg) => bot.telegram.sendMessage(OWNER_ID, msg, { parse_mode: "Markdown" }).catch(() => {}));
 
 const fbKeyboard = (source) => ({
   reply_markup: {

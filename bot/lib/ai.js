@@ -2,9 +2,46 @@
 // Tiap fungsi punya peran spesifik + fallback chain kalau model rate-limit.
 
 import Groq from "groq-sdk";
-import { trackUsage } from "./usage.js";
+import { trackUsage, getUsageToday } from "./usage.js";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+// Quota notification callback (di-set dari index.js)
+let onAlert = null;
+export const setAlertHandler = (fn) => { onAlert = fn; };
+
+// Limit Groq compound (CEO): RPD 250 per hari (reset UTC midnight = 07:00 WIB)
+const COMPOUND_LIMIT = 250;
+const ALERT_THRESHOLDS = [200, 230, 245]; // 80%, 92%, 98%
+const alertedToday = new Set();
+
+const nextResetWIB = () => {
+  const now = new Date();
+  const utcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  const wibReset = new Date(utcMidnight.getTime() + 7 * 3600_000);
+  const diffMin = Math.round((utcMidnight - now) / 60_000);
+  const hours = Math.floor(diffMin / 60);
+  const mins = diffMin % 60;
+  const resetStr = wibReset.toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", day: "numeric", month: "short",
+  });
+  return { resetStr, hours, mins };
+};
+
+const checkCompoundQuota = async () => {
+  try {
+    const today = await getUsageToday();
+    const calls = today?.senior?.by_model?.["groq/compound"] || 0;
+    for (const t of ALERT_THRESHOLDS) {
+      if (calls >= t && !alertedToday.has(t)) {
+        alertedToday.add(t);
+        const sisa = COMPOUND_LIMIT - calls;
+        const { resetStr, hours, mins } = nextResetWIB();
+        if (onAlert) onAlert(`⚠️ Compound ${calls}/${COMPOUND_LIMIT} hari ini. Sisa ${sisa} panggilan.\n🕐 Reset: ${resetStr} WIB (${hours}j ${mins}m lagi)`);
+      }
+    }
+  } catch (e) { console.warn("[quota check]", e.message); }
+};
 
 // Peta peran → model utama + fallback. Compound RPD 250 — HEMAT untuk chat utama saja.
 const MODELS = {
@@ -34,11 +71,16 @@ const callWithFallback = async (role, params) => {
         prompt_tokens: res.usage?.prompt_tokens || 0,
         completion_tokens: res.usage?.completion_tokens || 0,
       }).catch(() => {});
+      if (model === "groq/compound") checkCompoundQuota().catch(() => {});
       return { content: res.choices[0]?.message?.content?.trim() || "", model };
     } catch (err) {
       lastErr = err;
       if (!isRateLimit(err)) throw err; // error lain → langsung throw
       console.warn(`AI ${role}: ${model} rate-limit, fallback...`);
+      if (model === "groq/compound" && onAlert) {
+        const { resetStr, hours, mins } = nextResetWIB();
+        onAlert(`🚫 Compound *limit habis*. Aegis pindah ke fallback.\n🕐 Reset: ${resetStr} WIB (${hours}j ${mins}m lagi)`);
+      }
     }
   }
   throw lastErr || new Error(`No model available for role ${role}`);
