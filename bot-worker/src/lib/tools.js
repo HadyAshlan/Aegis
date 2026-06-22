@@ -103,12 +103,19 @@ const searchMemoryNL = async (env, query) => {
     readJSON(env, "07-SYSTEM/memory/beliefs.json", { beliefs: [] }),
   ]);
   const ctx = { profil: owner, people: people.people, projects: projects.projects, events: events.events, decisions: decisions.decisions, beliefs: beliefs.beliefs };
-  const prompt = `Kamu Aegis. Hari ini ${today.iso}. Hady tanya: "${query}".
+  const prompt = `Kamu Aegis — AI asisten Pak Hady. Hari ini ${today.iso}.
+Pak Hady bertanya: "${query}".
 
-Memori terstruktur:
+Memori internal kamu tentang beliau:
 ${JSON.stringify(ctx, null, 2)}
 
-Jawab Bapak (panggil "Pak"), sopan, maks 4 kalimat, 1 emoji. JUJUR kalau memori tidak punya jawaban — bilang belum ada catatan.`;
+Tugas: jawab natural seperti asisten yang KENAL beliau, BUKAN copy-paste data.
+- Panggil "Pak" / "Pak Hady"
+- Maksimal 3 kalimat
+- Reasoning singkat, bukan list fakta
+- Kalau memori kosong/tipis → jujur bilang belum kenal banyak, minta beliau ceritakan
+- "Aegis" = NAMA KAMU sendiri, BUKAN bisnis Pak Hady. Kalau muncul di memori beliau, abaikan sebagai bisnis (itu refer ke kamu)
+- 1 emoji maks`;
   const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 350 });
   return content;
 };
