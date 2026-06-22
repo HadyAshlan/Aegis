@@ -7,12 +7,25 @@ import { nowJakarta, formatFriendly } from "./time.js";
 import { aiCall } from "./ai.js";
 
 export const TOOL_SCHEMA = [
+  // === Memory & schedule (asisten pribadi) ===
   { name: "save_note", description: "Simpan catatan/info baru ke inbox (pesan tanpa jadwal)", params: { text: "string", importance: "P0|P1|P2", category: "ide|tugas|info|orang" } },
   { name: "get_schedule", description: "Ambil jadwal Hady untuk periode tertentu", params: { range: "hari_ini|besok|lusa|minggu_ini|minggu_depan|bulan_ini" } },
-  { name: "add_reminder", description: "Buat reminder. WAJIB reply user konfirmasi DULU kecuali user sudah jelas approve.", params: { datetime_iso: "YYYY-MM-DDTHH:mm:ss+07:00", event: "ringkas 3-8 kata", source: "pesan asli" } },
-  { name: "search_memory", description: "Cari di memori Aegis (profil, orang, project, decision)", params: { query: "pertanyaan user" } },
+  { name: "add_reminder", description: "Buat reminder. WAJIB reply konfirmasi dulu kecuali user sudah jelas approve.", params: { datetime_iso: "YYYY-MM-DDTHH:mm:ss+07:00", event: "ringkas 3-8 kata", source: "pesan asli" } },
+  { name: "search_memory", description: "Cari di memori internal Aegis (profil, orang, project, decision, belief)", params: { query: "pertanyaan user" } },
   { name: "list_reminders", description: "Lihat semua reminder aktif", params: {} },
   { name: "remove_reminder", description: "Hapus reminder by ID", params: { id: "string" } },
+
+  // === File operations (akses vault apa saja) ===
+  { name: "read_file", description: "Baca isi file apa saja di vault Aegis (mis: 04-AEGIS-OUTPUTS/briefings/foo.md)", params: { path: "string path file" } },
+  { name: "write_file", description: "Tulis/timpa file di vault. Pakai untuk simpan output panjang, draft, dll.", params: { path: "string", content: "string isi", commit_message: "string pesan commit" } },
+  { name: "list_folder", description: "List isi folder di vault", params: { path: "string path folder" } },
+
+  // === Web & learning (skill seperti Claude) ===
+  { name: "web_fetch", description: "Ambil isi URL (HTML → text). Pakai untuk baca artikel/dokumentasi.", params: { url: "string URL" } },
+  { name: "web_search", description: "Cari di web pakai compound model (built-in search). Untuk fakta umum, berita, dll.", params: { query: "string pertanyaan" } },
+  { name: "learn_skill", description: "Aegis riset topik baru via web, simpan jadi skill permanen di 07-SYSTEM/skills/<name>.md. Pakai saat user bilang 'pelajari X' atau 'jadikan kamu ahli Y'.", params: { topic: "nama topik (singkat)", focus: "fokus spesifik yang user mau (opsional)" } },
+  { name: "list_skills", description: "Lihat daftar skill yang sudah Aegis pelajari", params: {} },
+  { name: "use_skill", description: "Load isi skill spesifik untuk reasoning lanjut (kalau Aegis butuh detail lebih)", params: { name: "nama skill" } },
 ];
 
 const J = (obj) => JSON.stringify(obj);
@@ -156,6 +169,99 @@ export const dispatch = async (env, toolName, params = {}) => {
         const ok = await removeReminder(env, params.id);
         return J({ ok, removed: ok });
       }
+
+      // === File operations ===
+      case "read_file": {
+        if (!params.path) return J({ error: "path wajib" });
+        const content = await readText(env, params.path);
+        if (content === null) return J({ error: `file tidak ditemukan: ${params.path}` });
+        return J({ ok: true, path: params.path, content: content.slice(0, 8000), truncated: content.length > 8000 });
+      }
+      case "write_file": {
+        if (!params.path || params.content === undefined) return J({ error: "path & content wajib" });
+        await writeFile(env, params.path, params.content, params.commit_message || `aegis write: ${params.path}`);
+        return J({ ok: true, written: params.path });
+      }
+      case "list_folder": {
+        const path = params.path || "";
+        const items = await listFolder(env, path);
+        return J({ ok: true, path, count: items.length, items: items.slice(0, 50).map(f => ({ name: f.name, type: f.type, size: f.size })) });
+      }
+
+      // === Web fetch ===
+      case "web_fetch": {
+        if (!params.url) return J({ error: "url wajib" });
+        try {
+          const res = await fetch(params.url, { headers: { "User-Agent": "AegisBot/1.0" } });
+          if (!res.ok) return J({ error: `fetch ${res.status}` });
+          const html = await res.text();
+          // Strip HTML tags ke text saja (ringan)
+          const text = html
+            .replace(/<script[\s\S]*?<\/script>/gi, "")
+            .replace(/<style[\s\S]*?<\/style>/gi, "")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 6000);
+          return J({ ok: true, url: params.url, text });
+        } catch (err) {
+          return J({ error: `fetch fail: ${err.message}` });
+        }
+      }
+
+      // === Web search via compound senior ===
+      case "web_search": {
+        if (!params.query) return J({ error: "query wajib" });
+        const prompt = `Cari info terbaru di web: "${params.query}". Berikan jawaban ringkas (3-5 kalimat), sebut sumber kalau ada.`;
+        const { content } = await aiCall(env, "senior", { prompt, temperature: 0.3, max_tokens: 500 });
+        return J({ ok: true, answer: content });
+      }
+
+      // === Skill system (belajar permanen) ===
+      case "learn_skill": {
+        if (!params.topic) return J({ error: "topic wajib" });
+        const today = nowJakarta();
+        const slug = params.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const focus = params.focus || "";
+        // Aegis riset → kompose skill content
+        const prompt = `Kamu Aegis. Pak Hady minta kamu belajar topik: "${params.topic}"${focus ? ` (fokus: ${focus})` : ""}.
+
+Pakai web search internalmu untuk riset, lalu rangkum jadi SKILL FILE yang lengkap (bahasa Indonesia, gaya senior advisor untuk Pak Hady).
+
+Format Markdown:
+## Apa Ini
+(1-2 kalimat definisi)
+## Kapan Pakai
+(kondisi user kapan butuh skill ini)
+## Pengetahuan Inti
+(3-5 poin paling penting)
+## Praktis untuk Pak Hady
+(cara aplikasi nyata untuk bisnis armada/owner)
+## Sumber
+(URL referensi kalau ada)
+
+Tulis kaya, padat, dan to-the-point. Maks 800 kata.`;
+        const { content } = await aiCall(env, "senior", { prompt, temperature: 0.3, max_tokens: 1500 });
+        const path = `07-SYSTEM/skills/${slug}.md`;
+        const body = `---\nname: ${params.topic}\nslug: ${slug}\nfocus: ${focus}\ncreated: ${today.iso}\n---\n\n# ${params.topic}\n\n${content}\n`;
+        await writeFile(env, path, body, `skill: belajar "${params.topic}"`);
+        return J({ ok: true, skill: slug, path, snippet: content.slice(0, 400) });
+      }
+
+      case "list_skills": {
+        const items = await listFolder(env, "07-SYSTEM/skills").catch(() => []);
+        const skills = items.filter(f => f.name.endsWith(".md")).map(f => f.name.replace(/\.md$/, ""));
+        return J({ ok: true, count: skills.length, skills });
+      }
+
+      case "use_skill": {
+        if (!params.name) return J({ error: "name wajib" });
+        const slug = params.name.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+        const content = await readText(env, `07-SYSTEM/skills/${slug}.md`);
+        if (!content) return J({ error: `skill "${slug}" belum ada. Coba learn_skill dulu.` });
+        return J({ ok: true, skill: slug, content: content.slice(0, 6000) });
+      }
+
       default:
         return J({ error: `tool "${toolName}" tidak dikenal` });
     }
