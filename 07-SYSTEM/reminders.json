@@ -6,7 +6,7 @@
       "event": "Rapat tahunan Organda",
       "source": "Besok saya ada meeting rapat tahunan Organda",
       "created": "2026-06-21 17:43:18 WIB",
-      "notified": false
+      "notified": true
     },
     {
       "id": "eb026886",
@@ -14,7 +14,7 @@
       "event": "Rapat tahunan Organda",
       "source": "Rapat tahunan Organda",
       "created": "2026-06-21 17:44:32 WIB",
-      "notified": false
+      "notified": true
     },
     {
       "id": "90c0ea1b",
