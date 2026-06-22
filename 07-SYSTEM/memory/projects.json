@@ -6,7 +6,7 @@
       "id": "proj_e30889",
       "name": "M44",
       "first_seen": "2026-06-21",
-      "last_mentioned": "2026-06-21",
+      "last_mentioned": "2026-06-23",
       "notes": [
         "11 unit",
         "11 Unit"
@@ -17,7 +17,7 @@
       "id": "proj_3c544c",
       "name": "M53",
       "first_seen": "2026-06-21",
-      "last_mentioned": "2026-06-21",
+      "last_mentioned": "2026-06-23",
       "notes": [
         "11 unit"
       ],
@@ -46,6 +46,14 @@
       "name": "kojang",
       "first_seen": "2026-06-21",
       "last_mentioned": "2026-06-21",
+      "notes": [],
+      "status": "aktif"
+    },
+    {
+      "id": "proj_w6iuoa",
+      "name": "km Aegis",
+      "first_seen": "2026-06-23",
+      "last_mentioned": "2026-06-23",
       "notes": [],
       "status": "aktif"
     }
