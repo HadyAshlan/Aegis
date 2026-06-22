@@ -13,14 +13,35 @@ const PROVIDERS = {
 };
 
 const MODELS = {
-  // Chat utama Pak Hady — compound (TPD ∞) → Z.AI GLM-4.5 → llama 70b
-  senior: ["groq/groq/compound", "groq/groq/compound-mini", "zai/glm-4.5", "groq/llama-3.3-70b-versatile"],
+  // Chat Pak Hady — compound (TPD ∞ Groq) → Z.AI Flash (FREE forever) → llama
+  senior: [
+    "groq/groq/compound",
+    "groq/groq/compound-mini",
+    "zai/glm-4.7-flash",        // FREE forever
+    "zai/glm-4.5-flash",        // FREE forever
+    "groq/llama-3.3-70b-versatile",
+  ],
   // Reasoning (brief, recap, anomaly, recall, self-tune)
-  reason: ["groq/openai/gpt-oss-120b", "zai/glm-4.5-flash", "groq/llama-3.3-70b-versatile", "groq/meta-llama/llama-4-scout-17b-16e-instruct"],
+  reason: [
+    "groq/openai/gpt-oss-120b",
+    "zai/glm-4.7-flash",        // FREE forever
+    "zai/glm-4.5-flash",        // FREE forever
+    "groq/llama-3.3-70b-versatile",
+    "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+  ],
   // Distill (JSON output)
-  analyze: ["groq/llama-3.3-70b-versatile", "groq/meta-llama/llama-4-scout-17b-16e-instruct", "groq/qwen/qwen3-32b"],
-  // Klasifikasi cepat (kalau dipakai)
-  fast: ["groq/llama-3.1-8b-instant", "groq/qwen/qwen3-32b"],
+  analyze: [
+    "groq/llama-3.3-70b-versatile",
+    "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "zai/glm-4.7-flash",        // FREE forever, support JSON
+    "groq/qwen/qwen3-32b",
+  ],
+  // Klasifikasi cepat
+  fast: [
+    "groq/llama-3.1-8b-instant",
+    "zai/glm-4.5-flash",        // FREE forever
+    "groq/qwen/qwen3-32b",
+  ],
 };
 
 const splitModel = (full) => {
