@@ -10,6 +10,14 @@
           "groq/compound-mini": 2,
           "openai/gpt-oss-120b": 15
         }
+      },
+      "reason": {
+        "calls": 1,
+        "prompt": 281,
+        "completion": 252,
+        "by_model": {
+          "openai/gpt-oss-120b": 1
+        }
       }
     }
   }
