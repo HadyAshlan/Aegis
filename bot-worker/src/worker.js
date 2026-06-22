@@ -177,6 +177,40 @@ const handleVoice = async (env, msg) => {
   }
 };
 
+const handlePhoto = async (env, msg) => {
+  await sendMessage(env, msg.chat.id, "🖼️ Lihat gambar...");
+  try {
+    // Telegram kirim array foto resolusi berbeda; ambil yg terbesar
+    const photo = msg.photo[msg.photo.length - 1];
+    const fileLink = await getFileLink(env, photo.file_id);
+    const caption = msg.caption?.trim() || "Apa yang Bapak ingin saya jelaskan dari gambar ini?";
+
+    // Panggil GLM-4.6V via Z.AI (FREE)
+    const res = await fetch("https://api.z.ai/api/paas/v4/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.ZAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "glm-4.6v-flash",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: fileLink } },
+            { type: "text", text: `Kamu Aegis, asisten Pak Hady. Beliau kirim gambar ini dengan pertanyaan: "${caption}". Jawab dengan bahasa Indonesia sopan, panggil "Pak", 2-4 kalimat.` },
+          ],
+        }],
+        temperature: 0.3,
+        max_tokens: 600,
+      }),
+    });
+    if (!res.ok) throw new Error(`vision ${res.status}`);
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content?.trim() || "Maaf Pak, gambarnya tidak terbaca jelas.";
+    return sendMessage(env, msg.chat.id, text, fbKeyboard("vision"));
+  } catch (err) {
+    return sendMessage(env, msg.chat.id, `❌ Gagal analisa gambar: ${err.message}`);
+  }
+};
+
 const handleCallback = async (env, cb) => {
   const data = cb.data || "";
   if (!data.startsWith("fb:")) return;
@@ -293,6 +327,7 @@ export default {
         }
         if (msg.text) return handleText(env, msg);
         if (msg.voice) return handleVoice(env, msg);
+        if (msg.photo) return handlePhoto(env, msg);
       } catch (err) {
         console.error("[handler]", err);
         try { await sendMessage(env, env.TELEGRAM_CHAT_ID, `❌ Error: ${err.message?.slice(0, 200)}`); } catch {}

@@ -49,6 +49,25 @@ export const TOOL_SCHEMA = [
   { name: "generate_code", description: "Aegis tulis code untuk task tertentu. Bisa simpan langsung ke file di vault.", params: { task: "deskripsi tugas", language: "python|javascript|html|sql|bash|...", save_to: "path file di vault (opsional, kalau mau disimpan)" } },
   { name: "execute_python", description: "Eksekusi Python code via compound (sandbox aman). Output stdout/result. Untuk hitung kompleks, parse data, dll.", params: { code: "python code" } },
   { name: "review_code", description: "Aegis review code yang ada — cari bug, suggest improvement, security issue.", params: { code: "string code", language: "bahasa kode", focus: "fokus review (opsional)" } },
+  { name: "debug_help", description: "Bantu debug error: baca error message + code, kasih root cause + fix.", params: { error: "error message", code: "code context (opsional)" } },
+  { name: "generate_tests", description: "Bikin test cases untuk function/spec.", params: { code_or_spec: "code/spec", framework: "jest|pytest|... (opsional)" } },
+
+  // === Vision (dari Z.AI GLM-4.6V) ===
+  { name: "analyze_image", description: "Analisa gambar dari URL — vision via GLM-4.6V-Flash (FREE). Untuk parse screenshot, foto dokumen, dll.", params: { image_url: "URL gambar", question: "apa yang Hady ingin diketahui dari gambar" } },
+
+  // === Planning & autonomous (dari Claude) ===
+  { name: "make_plan", description: "Bikin rencana detail multi-step untuk goal kompleks. Output: plan terstruktur yang bisa di-execute.", params: { goal: "tujuan akhir", constraints: "batasan/budget/waktu (opsional)" } },
+  { name: "compare_options", description: "Bandingkan 2-4 pilihan berdasarkan kriteria.", params: { options: "list pilihan (string)", criteria: "kriteria perbandingan (string)" } },
+  { name: "brainstorm", description: "Brainstorm N ide untuk topik tertentu.", params: { topic: "topik", count: "jumlah ide (default 5)" } },
+
+  // === Content creation (dari Claude + Z.AI) ===
+  { name: "draft_document", description: "Bikin draf dokumen (proposal, memo, surat resmi, email, dll).", params: { type: "proposal|memo|surat|email|kontrak|...", points: "poin-poin utama", recipient: "siapa penerima (opsional)", tone: "formal|santai|persuasif (opsional)" } },
+  { name: "long_form_write", description: "Tulis konten panjang (artikel, laporan, esai).", params: { topic: "topik", outline: "outline (opsional)", word_count: "target kata (default 500)" } },
+  { name: "rewrite", description: "Tulis ulang teks dengan gaya/nada berbeda (formal, santai, sederhana, persuasif).", params: { text: "teks asli", style: "gaya target" } },
+
+  // === Data ===
+  { name: "analyze_data", description: "Analisa data terstruktur (CSV, JSON, tabel). Cari pola, anomali, ringkasan statistik.", params: { data: "string data (CSV/JSON)", focus: "fokus analisa (opsional)" } },
+  { name: "consolidate_memory", description: "Cleanup memory: gabung duplikat, archive yang stale, normalize entries. Pakai sesekali kalau memory jadi berantakan.", params: {} },
 ];
 
 const J = (obj) => JSON.stringify(obj);
@@ -448,6 +467,148 @@ Tulis kaya, padat, dan to-the-point. Maks 800 kata.`;
         const prompt = `Review ${lang} code berikut dengan fokus: ${focus}.\n\n\`\`\`${lang}\n${params.code.slice(0, 4000)}\n\`\`\`\n\nFormat (Markdown):\n## 🐛 Bug / Masalah\n## ⚡ Performance\n## 🧹 Readability\n## 🔒 Security\n## ✅ Saran Konkret\n\nKalau tidak ada masalah di section, skip. Max 300 kata.`;
         const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 800 });
         return J({ ok: true, review: content });
+      }
+
+      case "debug_help": {
+        if (!params.error) return J({ error: "error wajib" });
+        const prompt = `Bantu debug error berikut.\n\nError:\n${params.error}\n\n${params.code ? `Code context:\n\`\`\`\n${params.code.slice(0, 2000)}\n\`\`\`\n` : ""}\nFormat (Markdown, 250 kata max):\n## 🎯 Root Cause\n## 🔧 Fix Konkret\n## 🛡️ Cara Cegah ke Depan`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 700 });
+        return J({ ok: true, debug: content });
+      }
+
+      case "generate_tests": {
+        if (!params.code_or_spec) return J({ error: "code_or_spec wajib" });
+        const fw = params.framework || "jest";
+        const prompt = `Bikin test cases untuk:\n\n${params.code_or_spec.slice(0, 3000)}\n\nFramework: ${fw}. Cover: happy path, edge cases, error cases. Tulis hanya code, bungkus code fence.`;
+        const { content } = await aiCall(env, "senior", { prompt, temperature: 0.2, max_tokens: 1500 });
+        const m = content.match(/```[\w]*\n([\s\S]*?)```/);
+        const tests = m ? m[1].trim() : content.trim();
+        return J({ ok: true, framework: fw, tests });
+      }
+
+      // === Vision (GLM-4.6V via Z.AI, FREE) ===
+      case "analyze_image": {
+        if (!params.image_url) return J({ error: "image_url wajib" });
+        const question = params.question || "Deskripsikan apa yang ada di gambar ini secara detail.";
+        try {
+          const res = await fetch("https://api.z.ai/api/paas/v4/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${env.ZAI_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "glm-4.6v-flash",
+              messages: [{
+                role: "user",
+                content: [
+                  { type: "image_url", image_url: { url: params.image_url } },
+                  { type: "text", text: question },
+                ],
+              }],
+              temperature: 0.3,
+              max_tokens: 800,
+            }),
+          });
+          if (!res.ok) return J({ error: `vision API ${res.status}: ${await res.text()}` });
+          const data = await res.json();
+          return J({ ok: true, analysis: data.choices?.[0]?.message?.content || "(kosong)" });
+        } catch (err) { return J({ error: err.message }); }
+      }
+
+      // === Planning ===
+      case "make_plan": {
+        if (!params.goal) return J({ error: "goal wajib" });
+        const prompt = `Pak Hady punya goal: "${params.goal}"${params.constraints ? `\nBatasan: ${params.constraints}` : ""}.\n\nBikin rencana detail. Format Markdown:\n## 🎯 Goal Singkat\n## 📋 Step-by-Step (5-8 langkah)\n## ⏱️ Estimasi Waktu\n## 🚧 Potensi Hambatan\n## ✅ Indikator Sukses\n\nMax 400 kata, konkret & actionable.`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.4, max_tokens: 900 });
+        return J({ ok: true, plan: content });
+      }
+
+      case "compare_options": {
+        if (!params.options || !params.criteria) return J({ error: "options & criteria wajib" });
+        const prompt = `Bandingkan opsi berikut berdasarkan kriteria.\n\nOpsi: ${params.options}\nKriteria: ${params.criteria}\n\nFormat: tabel Markdown + 1 paragraph rekomendasi akhir dari saya. Max 300 kata.`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 700 });
+        return J({ ok: true, comparison: content });
+      }
+
+      case "brainstorm": {
+        if (!params.topic) return J({ error: "topic wajib" });
+        const n = params.count || 5;
+        const prompt = `Brainstorm ${n} ide kreatif & praktis untuk topik: "${params.topic}". Untuk pemilik armada angkot di Indonesia. Format: numbered list. Tiap ide: judul singkat + 1 kalimat penjelasan.`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.7, max_tokens: 600 });
+        return J({ ok: true, ideas: content });
+      }
+
+      // === Content creation ===
+      case "draft_document": {
+        if (!params.type || !params.points) return J({ error: "type & points wajib" });
+        const tone = params.tone || "formal";
+        const to = params.recipient ? ` untuk ${params.recipient}` : "";
+        const prompt = `Bikin draf ${params.type}${to}. Nada: ${tone}. Bahasa Indonesia.\n\nPoin-poin utama:\n${params.points}\n\nFormat: dokumen siap kirim, lengkap dengan opening & closing yg pantas. Max 400 kata.`;
+        const { content } = await aiCall(env, "senior", { prompt, temperature: 0.4, max_tokens: 900 });
+        return J({ ok: true, draft: content });
+      }
+
+      case "long_form_write": {
+        if (!params.topic) return J({ error: "topic wajib" });
+        const wc = params.word_count || 500;
+        const prompt = `Tulis konten ${wc} kata tentang: "${params.topic}"${params.outline ? `\n\nOutline:\n${params.outline}` : ""}\n\nBahasa Indonesia, gaya editorial — informatif tapi enak dibaca. Format Markdown dengan heading.`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.5, max_tokens: 2500 });
+        return J({ ok: true, content });
+      }
+
+      case "rewrite": {
+        if (!params.text || !params.style) return J({ error: "text & style wajib" });
+        const prompt = `Tulis ulang teks ini dengan gaya/nada: ${params.style}. Pertahankan makna inti.\n\nTeks asli:\n"""${params.text.slice(0, 3000)}"""\n\nOutput hanya hasil rewrite-nya.`;
+        const { content } = await aiCall(env, "fast", { prompt, temperature: 0.4, max_tokens: 1000 });
+        return J({ ok: true, rewritten: content });
+      }
+
+      // === Data ===
+      case "analyze_data": {
+        if (!params.data) return J({ error: "data wajib" });
+        const focus = params.focus || "ringkasan statistik, pola menarik, anomali, insight bisnis";
+        const prompt = `Analisa data berikut. Fokus: ${focus}.\n\nData:\n\`\`\`\n${params.data.slice(0, 4000)}\n\`\`\`\n\nFormat (Markdown, 300 kata max):\n## 📊 Ringkasan\n## 🔍 Pola / Anomali\n## 💡 Insight Bisnis untuk Pak Hady`;
+        const { content } = await aiCall(env, "reason", { prompt, temperature: 0.3, max_tokens: 800 });
+        return J({ ok: true, analysis: content });
+      }
+
+      case "consolidate_memory": {
+        // Ambil semua memory files, deteksi duplikat sederhana
+        const [people, projects, beliefs] = await Promise.all([
+          readJSON(env, "07-SYSTEM/memory/people.json", { people: [] }),
+          readJSON(env, "07-SYSTEM/memory/projects.json", { projects: [] }),
+          readJSON(env, "07-SYSTEM/memory/beliefs.json", { beliefs: [] }),
+        ]);
+        const dedupByName = (list, key) => {
+          const seen = new Map();
+          const merged = [];
+          for (const x of list) {
+            const k = (x[key] || "").toLowerCase().trim();
+            if (!k) continue;
+            if (seen.has(k)) {
+              const target = merged[seen.get(k)];
+              // merge notes
+              for (const n of x.notes || []) if (!target.notes.includes(n)) target.notes.push(n);
+              continue;
+            }
+            seen.set(k, merged.length);
+            merged.push({ ...x, notes: x.notes ? [...new Set(x.notes)] : [] });
+          }
+          return merged;
+        };
+        const peopleClean = dedupByName(people.people || [], "name");
+        const projectsClean = dedupByName(projects.projects || [], "name");
+        const beliefsClean = dedupByName(beliefs.beliefs || [], "belief");
+        const changed = peopleClean.length !== (people.people || []).length ||
+          projectsClean.length !== (projects.projects || []).length ||
+          beliefsClean.length !== (beliefs.beliefs || []).length;
+        if (changed) {
+          people.people = peopleClean;
+          projects.projects = projectsClean;
+          beliefs.beliefs = beliefsClean;
+          await writeJSON(env, "07-SYSTEM/memory/people.json", people, "consolidate: dedupe people");
+          await writeJSON(env, "07-SYSTEM/memory/projects.json", projects, "consolidate: dedupe projects");
+          await writeJSON(env, "07-SYSTEM/memory/beliefs.json", beliefs, "consolidate: dedupe beliefs");
+        }
+        return J({ ok: true, deduped: changed, people: peopleClean.length, projects: projectsClean.length, beliefs: beliefsClean.length });
       }
 
       // === Introspeksi ===
