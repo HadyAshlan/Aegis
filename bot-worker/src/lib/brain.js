@@ -35,7 +35,7 @@ ATURAN PENTING:
 - "bandingkan A vs B" → compare_options
 - "bikin rencana/plan" → make_plan
 - "draft email/proposal/memo" → draft_document
-- Pesan info tanpa jadwal → save_note
+- Pesan info biasa (cerita, catatan, fakta) → reply natural saja. JANGAN panggil save_note (sudah auto-save di backend)
 - Pesan ada tanggal/waktu eksplisit → reply konfirmasi "Mau saya jadwalkan?"
 - "ya/oke" setelah konfirmasi → add_reminder
 - Tanya jadwal → get_schedule

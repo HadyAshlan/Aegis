@@ -5,7 +5,7 @@ import { dispatch } from "./lib/tools.js";
 import { sendMessage, answerCallback, editMessageReplyMarkup, getFileLink, fbKeyboard } from "./lib/telegram.js";
 import { resetState, getState, setState } from "./lib/state.js";
 import { listActive, removeReminder, dueReminders, markNotified } from "./lib/reminders.js";
-import { writeJSON, readJSON } from "./lib/store.js";
+import { writeJSON, readJSON, writeFile } from "./lib/store.js";
 import { distill, distillText } from "./lib/distill.js";
 import { generateMorningBrief, generateEveningRecap } from "./lib/briefings.js";
 import { detectAnomalies } from "./lib/anomaly.js";
@@ -172,11 +172,23 @@ const translatePromptToEnglish = async (env, text) => {
   } catch { return text; }
 };
 
+// Auto-save SEMUA pesan ke inbox (sebelum brain decide apa-apa)
+const autoSaveToInbox = async (env, text, kind = "telegram") => {
+  try {
+    const { date, time, iso } = nowJakarta();
+    const path = `00-INBOX/${date}-${time}.md`;
+    const body = `---\ncreated: ${iso}\nsource: ${kind}\n---\n\n${text}\n`;
+    await writeFile(env, path, body, `inbox: ${date}-${time}`);
+  } catch (err) { console.error("[auto-save]", err.message); }
+};
+
 // === Message handlers ===
 const handleText = async (env, msg) => {
   const text = msg.text.trim();
   if (!text) return;
-  // Quick router dulu — handle pattern jelas tanpa brain
+  // AUTO-SAVE dulu — tidak tergantung brain. Memory selalu tumbuh.
+  await autoSaveToInbox(env, text, "telegram-text");
+  // Quick router untuk pattern jelas
   if (await quickRoute(env, msg.chat.id, text)) return;
   // Sisanya ke brain
   const reply = await handleMessage(env, msg.chat.id, text);
