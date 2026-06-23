@@ -4,6 +4,7 @@ import { writeFile, writeJSON, readJSON, listFolder, readText } from "./store.js
 import { addReminder, listActive, removeReminder } from "./reminders.js";
 import { distillText } from "./distill.js";
 import { tavilySearch } from "./tavily.js";
+import { redactMemory } from "./privacy.js";
 import { nowJakarta, formatFriendly } from "./time.js";
 import { aiCall } from "./ai.js";
 
@@ -161,7 +162,15 @@ const searchMemoryNL = async (env, query) => {
     readJSON(env, "07-SYSTEM/memory/decisions.json", { decisions: [] }),
     readJSON(env, "07-SYSTEM/memory/beliefs.json", { beliefs: [] }),
   ]);
-  const ctx = { profil: owner, people: people.people, projects: projects.projects, events: events.events, decisions: decisions.decisions, beliefs: beliefs.beliefs };
+  // PRIVACY: redact data sensitif (nominal, credential) sebelum kirim ke external AI
+  const ctx = redactMemory({
+    profil: owner,
+    people: people.people,
+    projects: projects.projects,
+    events: events.events,
+    decisions: decisions.decisions,
+    beliefs: beliefs.beliefs,
+  });
   const prompt = `Kamu Aegis — AI asisten Pak Hady. Hari ini ${today.iso}.
 Pak Hady bertanya: "${query}".
 
