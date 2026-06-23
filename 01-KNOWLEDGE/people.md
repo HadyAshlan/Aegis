@@ -1,5 +1,5 @@
 ---
-updated: 2026-06-23 15:46:56 WIB
+updated: 2026-06-23 23:00:59 WIB
 source: memory/people.json
 type: people
 count: 1
