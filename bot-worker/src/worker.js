@@ -332,6 +332,22 @@ const handleCallback = async (env, cb) => {
   }
 };
 
+// === Self-heal webhook (cek tiap cron run, set ulang kalau hilang) ===
+const WORKER_URL = "https://aegis-bot.asuyhung.workers.dev";
+const cronWebhookHealth = async (env) => {
+  try {
+    const infoRes = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
+    if (!infoRes.ok) return;
+    const data = await infoRes.json();
+    const currentUrl = data.result?.url;
+    if (!currentUrl || currentUrl !== WORKER_URL) {
+      // Webhook hilang atau salah — set ulang
+      await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook?url=${WORKER_URL}`);
+      await sendMessage(env, env.TELEGRAM_CHAT_ID, `🔧 Webhook self-heal: di-set ulang ke ${WORKER_URL}`);
+    }
+  } catch (err) { console.error("[webhook health]", err.message); }
+};
+
 // === Cron dispatcher (1 cron tiap 10 menit, internal dispatch per slot) ===
 const cronReminderDispatch = async (env) => {
   const due = await dueReminders(env);
@@ -447,6 +463,7 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       try {
+        await cronWebhookHealth(env);
         await cronReminderDispatch(env);
         await runDailyJobs(env);
       } catch (err) { console.error("[scheduled]", err); }
