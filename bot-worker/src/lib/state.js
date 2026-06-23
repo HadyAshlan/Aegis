@@ -2,7 +2,7 @@
 // Cap 16 messages.
 
 const KEY = (chatId) => `conv:${chatId}`;
-const MAX = 16;
+const MAX = 8; // 4 turn user+assistant — cukup konteks tanpa overflow 413
 
 export const getState = async (env, chatId) => {
   const raw = await env.AEGIS_KV.get(KEY(chatId), { type: "json" });
