@@ -30,11 +30,11 @@
     },
     "2026-06-23": {
       "senior": {
-        "calls": 21,
-        "prompt": 95633,
-        "completion": 6756,
+        "calls": 22,
+        "prompt": 99564,
+        "completion": 7296,
         "by_model": {
-          "groq/compound": 17,
+          "groq/compound": 18,
           "groq/compound-mini": 4
         }
       },
