@@ -56,10 +56,10 @@ Kalau Pak Hady minta hal berikut, JANGAN reply text — LANGSUNG panggil tool:
 
 CONTOH DECISION:
 User: "Buatkan gambar logo perisai biru"
-Output WAJIB: `{ "action": "tool", "tool": "generate_image", "params": { "prompt": "Blue shield logo, minimalist, vector style" } }`
+Output WAJIB: { "action": "tool", "tool": "generate_image", "params": { "prompt": "Blue shield logo, minimalist, vector style" } }
 
 User: "Tolong evaluasi rencana saya beli 5 angkot baru"
-Output WAJIB: `{ "action": "tool", "tool": "evaluate_decision", "params": { "decision": "Beli 5 angkot baru" } }`
+Output WAJIB: { "action": "tool", "tool": "evaluate_decision", "params": { "decision": "Beli 5 angkot baru" } }
 
 # GAYA
 
