@@ -3,6 +3,7 @@
 import { writeFile, writeJSON, readJSON, listFolder, readText } from "./store.js";
 import { addReminder, listActive, removeReminder } from "./reminders.js";
 import { distillText } from "./distill.js";
+import { tavilySearch } from "./tavily.js";
 import { nowJakarta, formatFriendly } from "./time.js";
 import { aiCall } from "./ai.js";
 
@@ -254,12 +255,17 @@ export const dispatch = async (env, toolName, params = {}) => {
         }
       }
 
-      // === Web search via compound senior ===
+      // === Web search via Tavily (1000 credit/bulan, clean + cited) ===
       case "web_search": {
         if (!params.query) return J({ error: "query wajib" });
-        const prompt = `Cari info terbaru di web: "${params.query}". Berikan jawaban ringkas (3-5 kalimat), sebut sumber kalau ada.`;
-        const { content } = await aiCall(env, "senior", { prompt, temperature: 0.3, max_tokens: 500 });
-        return J({ ok: true, answer: content });
+        try {
+          const res = await tavilySearch(env, params.query, { depth: "basic", max: 5 });
+          return J({
+            ok: true,
+            answer: res.answer,
+            sources: res.results.slice(0, 3).map(r => ({ title: r.title, url: r.url, snippet: r.content.slice(0, 200) })),
+          });
+        } catch (err) { return J({ error: err.message }); }
       }
 
       // === Skill system (belajar permanen) ===

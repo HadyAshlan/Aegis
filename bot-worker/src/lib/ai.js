@@ -14,17 +14,10 @@ const PROVIDERS = {
 
 const MODELS = {
   // Chat brain — Z.AI GLM Flash (FREE) primary, llama-70b backup (NO compound, sering 413)
+  // BRAIN ORCHESTRATOR — Z.AI Flash only (no Groq, biar Groq dipakai untuk job lain)
   senior: [
-    "zai/glm-4.7-flash",        // FREE, context 128K
-    "zai/glm-4.5-flash",        // FREE
-    "groq/llama-3.3-70b-versatile",  // last resort, NO compound
-  ],
-  // Natural reply (brief/recap/anomaly) — Z.AI primary, hemat compound
-  reply_natural: [
     "zai/glm-4.7-flash",
     "zai/glm-4.5-flash",
-    "groq/openai/gpt-oss-120b",
-    "groq/llama-3.3-70b-versatile",
   ],
   // Reasoning (brief, recap, anomaly, recall, self-tune)
   reason: [
