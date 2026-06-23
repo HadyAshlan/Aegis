@@ -13,4 +13,4 @@ binding = "AI"
 
 # 1 cron tiap 10 menit — dispatch internal per slot waktu (workers free max 5 cron)
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/5 * * * *"]
