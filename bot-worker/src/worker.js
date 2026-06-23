@@ -3,7 +3,7 @@
 import { handleMessage } from "./lib/brain.js";
 import { dispatch } from "./lib/tools.js";
 import { sendMessage, answerCallback, editMessageReplyMarkup, getFileLink, fbKeyboard } from "./lib/telegram.js";
-import { resetState } from "./lib/state.js";
+import { resetState, getState, setState } from "./lib/state.js";
 import { listActive, removeReminder, dueReminders, markNotified } from "./lib/reminders.js";
 import { writeJSON, readJSON } from "./lib/store.js";
 import { distill, distillText } from "./lib/distill.js";
@@ -238,6 +238,11 @@ const handlePhoto = async (env, msg) => {
     if (!res.ok) throw new Error(`vision ${res.status}`);
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content?.trim() || "Maaf Pak, gambarnya tidak terbaca jelas.";
+    // Simpan ke conversation state — biar follow-up Hady punya konteks
+    const st = await getState(env, msg.chat.id);
+    st.push({ role: "user", content: `[Saya kirim foto. Caption: "${caption}"]` });
+    st.push({ role: "assistant", content: text });
+    await setState(env, msg.chat.id, st);
     return sendMessage(env, msg.chat.id, text, fbKeyboard("vision"));
   } catch (err) {
     return sendMessage(env, msg.chat.id, `❌ Gagal analisa gambar: ${err.message}`);
@@ -311,6 +316,11 @@ Audio (transkrip): ${audio}
 
 Hari ini ${today.iso}. Jawab Pak Hady sopan, 3-4 kalimat, sebutkan apa yang kamu paham dari video — visual & suara. Kalau Pak Hady kasih caption pertanyaan, jawab itu.`;
     const { content } = await aiCall(env, "reason", { prompt: synthPrompt, temperature: 0.3, max_tokens: 600 });
+    // Simpan ke conversation state — biar follow-up Hady ada konteks video
+    const st = await getState(env, msg.chat.id);
+    st.push({ role: "user", content: `[Saya kirim video. Caption: "${caption}". Visual thumbnail: ${visual}. Audio transkrip: ${audio.slice(0, 500)}]` });
+    st.push({ role: "assistant", content });
+    await setState(env, msg.chat.id, st);
     return sendMessage(env, msg.chat.id, content, fbKeyboard("video"));
   } catch (err) {
     return sendMessage(env, msg.chat.id, `❌ Gagal analisa video: ${err.message}`);

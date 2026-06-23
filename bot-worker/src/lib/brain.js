@@ -54,7 +54,7 @@ export const handleMessage = async (env, chatId, userText) => {
   for (let turn = 0; turn < 5; turn++) {
     let content;
     try {
-      const r = await aiCall(env, "senior", { messages, temperature: 0.1, max_tokens: 500, json: true });
+      const r = await aiCall(env, "senior", { messages, temperature: 0.1, max_tokens: 500 });
       content = r.content;
     } catch (err) {
       const errReply = `Maaf Pak, AI sedang gangguan: ${err.message.slice(0, 150)}`;
