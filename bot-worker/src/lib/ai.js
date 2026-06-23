@@ -13,12 +13,12 @@ const PROVIDERS = {
 };
 
 const MODELS = {
-  // Chat Pak Hady — compound (TPD ∞ Groq) → Z.AI Flash (FREE forever) → llama
+  // Chat Pak Hady — Z.AI Flash PRIMARY (free selamanya) → Groq compound BACKUP
   senior: [
-    "groq/groq/compound",
+    "zai/glm-4.7-flash",        // FREE forever — primary
+    "zai/glm-4.5-flash",        // FREE forever — fallback
+    "groq/groq/compound",       // backup kalau Z.AI gangguan
     "groq/groq/compound-mini",
-    "zai/glm-4.7-flash",        // FREE forever
-    "zai/glm-4.5-flash",        // FREE forever
     "groq/llama-3.3-70b-versatile",
   ],
   // Reasoning (brief, recap, anomaly, recall, self-tune)
