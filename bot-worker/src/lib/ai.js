@@ -19,13 +19,10 @@ const MODELS = {
     "zai/glm-4.7-flash",
     "zai/glm-4.5-flash",
   ],
-  // Reasoning (brief, recap, anomaly, recall, self-tune)
+  // REASONER — Z.AI Flash dulu (FREE, no Groq dulu — anti-413)
   reason: [
-    "groq/openai/gpt-oss-120b",
-    "zai/glm-4.7-flash",        // FREE forever
-    "zai/glm-4.5-flash",        // FREE forever
-    "groq/llama-3.3-70b-versatile",
-    "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    "zai/glm-4.7-flash",
+    "zai/glm-4.5-flash",
   ],
   // Distill (JSON output)
   analyze: [
