@@ -45,6 +45,14 @@
         "by_model": {
           "openai/gpt-oss-120b": 1
         }
+      },
+      "analyze": {
+        "calls": 1,
+        "prompt": 1183,
+        "completion": 159,
+        "by_model": {
+          "llama-3.3-70b-versatile": 1
+        }
       }
     }
   }
