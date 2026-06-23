@@ -13,12 +13,19 @@ const PROVIDERS = {
 };
 
 const MODELS = {
-  // Chat Pak Hady — Z.AI Flash PRIMARY (free selamanya) → Groq compound BACKUP
+  // Chat brain (BUTUH JSON ketat) — compound dulu (reliable JSON), Z.AI cadangan
   senior: [
-    "zai/glm-4.7-flash",        // FREE forever — primary
-    "zai/glm-4.5-flash",        // FREE forever — fallback
-    "groq/groq/compound",       // backup kalau Z.AI gangguan
+    "groq/groq/compound",       // reliable JSON tool calling
     "groq/groq/compound-mini",
+    "groq/llama-3.3-70b-versatile",
+    "zai/glm-4.7-flash",        // backup kalau compound habis
+    "zai/glm-4.5-flash",
+  ],
+  // Natural reply (brief/recap/anomaly) — Z.AI primary, hemat compound
+  reply_natural: [
+    "zai/glm-4.7-flash",
+    "zai/glm-4.5-flash",
+    "groq/openai/gpt-oss-120b",
     "groq/llama-3.3-70b-versatile",
   ],
   // Reasoning (brief, recap, anomaly, recall, self-tune)
