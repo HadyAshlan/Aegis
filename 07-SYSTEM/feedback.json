@@ -81,6 +81,13 @@
       "message_id": 500,
       "rating": "up",
       "source": "test"
+    },
+    {
+      "ts": "2026-06-23 23:05:05 WIB",
+      "message_id": 297,
+      "rating": "up",
+      "source": "brain",
+      "model": null
     }
   ]
 }
