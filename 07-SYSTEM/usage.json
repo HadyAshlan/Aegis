@@ -90,6 +90,14 @@
         "by_model": {
           "groq/compound": 11
         }
+      },
+      "reason": {
+        "calls": 1,
+        "prompt": 431,
+        "completion": 417,
+        "by_model": {
+          "openai/gpt-oss-120b": 1
+        }
       }
     }
   }
