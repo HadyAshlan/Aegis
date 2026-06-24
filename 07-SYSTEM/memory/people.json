@@ -14,9 +14,10 @@
       "id": "person_032f64",
       "name": "Arip",
       "first_seen": "2026-06-23",
-      "last_mentioned": "2026-06-23",
+      "last_mentioned": "2026-06-24",
       "notes": [
-        "hutang 3.450.000"
+        "hutang 3.450.000",
+        "hutang sebesar 3.450.000"
       ],
       "role": "karyawan",
       "context": "hutang"
@@ -25,9 +26,10 @@
       "id": "person_c9fe84",
       "name": "Bembeng",
       "first_seen": "2026-06-23",
-      "last_mentioned": "2026-06-23",
+      "last_mentioned": "2026-06-24",
       "notes": [
-        "hutang 1.000.000"
+        "hutang 1.000.000",
+        "hutang sebesar 1.000.000"
       ],
       "role": "karyawan",
       "context": "hutang"
@@ -36,9 +38,10 @@
       "id": "person_7381d8",
       "name": "Isa",
       "first_seen": "2026-06-23",
-      "last_mentioned": "2026-06-23",
+      "last_mentioned": "2026-06-24",
       "notes": [
-        "hutang 500.000"
+        "hutang 500.000",
+        "hutang sebesar 500.000"
       ],
       "role": "karyawan",
       "context": "hutang"
