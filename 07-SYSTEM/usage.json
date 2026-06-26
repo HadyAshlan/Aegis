@@ -110,11 +110,11 @@
         }
       },
       "reason": {
-        "calls": 1,
-        "prompt": 460,
-        "completion": 490,
+        "calls": 2,
+        "prompt": 725,
+        "completion": 823,
         "by_model": {
-          "openai/gpt-oss-120b": 1
+          "openai/gpt-oss-120b": 2
         }
       }
     }
