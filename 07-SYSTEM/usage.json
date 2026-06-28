@@ -130,11 +130,11 @@
     },
     "2026-06-28": {
       "reason": {
-        "calls": 1,
-        "prompt": 431,
-        "completion": 359,
+        "calls": 2,
+        "prompt": 1719,
+        "completion": 953,
         "by_model": {
-          "openai/gpt-oss-120b": 1
+          "openai/gpt-oss-120b": 2
         }
       }
     }
