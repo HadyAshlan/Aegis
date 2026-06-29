@@ -146,6 +146,14 @@
         "by_model": {
           "openai/gpt-oss-120b": 1
         }
+      },
+      "senior": {
+        "calls": 1,
+        "prompt": 4035,
+        "completion": 524,
+        "by_model": {
+          "groq/compound": 1
+        }
       }
     }
   }
