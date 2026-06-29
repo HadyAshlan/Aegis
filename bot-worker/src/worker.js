@@ -364,9 +364,13 @@ const cronWebhookHealth = async (env) => {
     if (!infoRes.ok) return;
     const data = await infoRes.json();
     const currentUrl = data.result?.url;
-    if (!currentUrl || currentUrl !== WORKER_URL) {
-      // Webhook hilang atau salah — set ulang
-      await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook?url=${WORKER_URL}`);
+    const expectedSecret = env.WEBHOOK_SECRET || "";
+    const hasSecretMismatch = expectedSecret && !(data.result?.has_custom_certificate === false && currentUrl === WORKER_URL);
+    if (!currentUrl || currentUrl !== WORKER_URL || hasSecretMismatch) {
+      // Webhook hilang/salah — set ulang dengan secret_token kalau ada
+      const params = new URLSearchParams({ url: WORKER_URL });
+      if (expectedSecret) params.set("secret_token", expectedSecret);
+      await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook?${params}`);
       await sendMessage(env, env.TELEGRAM_CHAT_ID, `🔧 Webhook self-heal: di-set ulang ke ${WORKER_URL}`);
     }
   } catch (err) { console.error("[webhook health]", err.message); }
