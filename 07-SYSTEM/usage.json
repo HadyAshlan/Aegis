@@ -148,11 +148,11 @@
         }
       },
       "senior": {
-        "calls": 4,
-        "prompt": 14344,
-        "completion": 1523,
+        "calls": 5,
+        "prompt": 18151,
+        "completion": 1706,
         "by_model": {
-          "groq/compound": 3,
+          "groq/compound": 4,
           "groq/compound-mini": 1
         }
       }
