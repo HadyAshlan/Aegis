@@ -65,7 +65,7 @@ export const handleMessage = async (env, chatId, userText) => {
   const { iso } = nowJakarta();
   let messages = [{ role: "system", content: buildSystemPrompt(iso) }, ...state];
 
-  for (let turn = 0; turn < 5; turn++) {
+  for (let turn = 0; turn < 3; turn++) {
     let content;
     try {
       const r = await aiCall(env, "senior", { messages, temperature: 0.1, max_tokens: 500 });

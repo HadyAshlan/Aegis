@@ -76,15 +76,21 @@ export const aiCall = async (env, role, { prompt, messages, temperature = 0.2, m
         max_tokens,
         ...(json ? { response_format: { type: "json_object" } } : {}),
       };
-      const res = await fetch(cfg.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          ...(cfg.extraHeaders || {}),
-        },
-        body: JSON.stringify(body),
-      });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      let res;
+      try {
+        res = await fetch(cfg.url, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            ...(cfg.extraHeaders || {}),
+          },
+          body: JSON.stringify(body),
+          signal: ctrl.signal,
+        });
+      } finally { clearTimeout(timer); }
       if (res.ok) {
         const data = await res.json();
         return {
