@@ -14,3 +14,9 @@ binding = "AI"
 # 1 cron tiap 10 menit — dispatch internal per slot waktu (workers free max 5 cron)
 [triggers]
 crons = ["*/5 * * * *"]
+
+# Observability (Logs + Traces) — wajib ON biar tail log & debug jalan.
+# Tanpa block ini, tiap `wrangler deploy` reset ke disabled.
+[observability]
+enabled = true
+head_sampling_rate = 1
