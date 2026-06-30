@@ -12,17 +12,24 @@ const data = dv.io.load("07-SYSTEM/reminders.json");
 data.then(raw => {
   const obj = JSON.parse(raw);
   const now = Date.now();
+  const lo = now - 86400000;            // 1 hari ke belakang
+  const hi = now + 14 * 86400000;       // 14 hari ke depan
   const list = (obj.reminders || [])
-    .filter(r => !r.notified)
     .map(r => ({...r, ts: new Date(r.datetime_iso).getTime()}))
-    .filter(r => !isNaN(r.ts))
+    .filter(r => !isNaN(r.ts) && r.ts >= lo && r.ts <= hi)
     .sort((a,b) => a.ts - b.ts);
-  if (list.length === 0) { dv.paragraph("✅ Tidak ada reminder aktif."); return; }
+  if (list.length === 0) { dv.paragraph("✅ Tidak ada jadwal dalam rentang -1 sd +14 hari."); return; }
   dv.table(["Kapan", "Event", "Status"],
     list.map(r => {
       const d = new Date(r.datetime_iso);
-      const diff = Math.round((r.ts - now) / 86400000);
-      const status = diff < 0 ? "🔴 lewat" : diff === 0 ? "🟢 hari ini" : `🟡 ${diff} hari lagi`;
+      const diffMs = r.ts - now;
+      const diffH = Math.round(diffMs / 3600000);
+      const diffD = Math.round(diffMs / 86400000);
+      let status;
+      if (r.notified) status = "✅ sudah dikirim";
+      else if (diffMs < 0) status = "🔴 telat";
+      else if (diffH < 24) status = `🟢 ${diffH} jam lagi`;
+      else status = `🟡 ${diffD} hari lagi`;
       return [d.toLocaleString("id-ID", {dateStyle:"medium", timeStyle:"short"}), r.event, status];
     })
   );
