@@ -1,1 +1,18 @@
-{}
+{
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false,
+  "attachmentFolderPath": "09-DOCS/attachments",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "00-INBOX",
+  "promptDelete": true,
+  "showLineNumber": true,
+  "showFrontmatter": true,
+  "defaultViewMode": "source",
+  "userIgnoreFilters": [
+    "bot-worker/",
+    "bot/",
+    "node_modules/",
+    ".git/",
+    "sync/"
+  ]
+}
