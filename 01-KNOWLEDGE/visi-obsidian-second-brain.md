@@ -30,10 +30,32 @@ status: PRINSIP TETAP
 - Hady tidak perlu kirim `/distill`, `/sync_knowledge`, dll — semua otomatis.
 - Kalau ada masalah, Aegis kirim 1 notif Telegram (max 1x/jam, anti-spam).
 
-### 4. Capital Sentinel = NEXT PHASE
-- Sekarang: bot trading dengan 6 daily report. Setiap report standalone, gak ada konteks historical.
-- Visi: CS BACA Obsidian vault → punya memory historical → bisa bilang "Sudah 2 hari di range X, RSI konsisten 42-44" — bukan template kering.
-- Trigger eksekusi: setelah CS winrate 60% + profit ≥ $20/bln (top-up Anthropic API).
+### 4. Capital Sentinel = ARSITEKTUR 3-LAYER (Hady 30 Jun 2026)
+
+**Layer 1: BOT EXISTING (UTUH, JANGAN DIGANGGU)**
+- 100% rumus matematika + fundamental data
+- Signal BUY/SELL/HOLD via ensemble code vs AI yang SUDAH ADA
+- 6x daily report template existing tetap utuh
+- **Hady:** "rumus tidak bisa di ganggu gugat. kalau campur AI = tidak karuan karna AI bisa dilusi."
+
+**Layer 2: AI AGENT BARU (saya bangun, MODULAR, TIDAK CAMPUR ke Layer 1)**
+- Tugas: RISET historical, generate REPORT TERPISAH (template baru)
+- Output: "Akumulasi Pergerakan" report → "BTC sideways 2 hari, RSI konsisten 42-44, volume turun 15%"
+- Kirim ke Telegram sebagai pesan TERPISAH dari report Layer 1
+- Toggle via env `ENABLE_HISTORICAL_AGENT` (default off saat build, on saat siap)
+- TIDAK mengubah signal Layer 1 sama sekali
+
+**Layer 3: Claude (saya) = Head Senior Advisor (FUTURE)**
+- Trigger: winrate Layer 1 mencapai 60% + profit ≥ $20/bln → top-up Anthropic API direct
+- Tugas: baca Layer 1 signal + Layer 2 akumulasi report + vault Hady (portfolio, decisions, history)
+- Output: recommendation final dengan target keyakinan ≥ 85% (BUY/SELL/HOLD)
+- Untuk trading **long-term + short-term**
+
+**Aturan kunci 3-layer:**
+- Layer 1 = MURNI math (rumus tidak bohong, AI bisa dilusi)
+- Layer 2 = riset narrative (TIDAK ubah signal Layer 1, cuma kasih konteks)
+- Layer 3 = decision support (gabung semua → advice presisi)
+- Akun terpisah: bot di `hadysuyono/Capital_Sentinel`, brain di `HadyAshlan/Aegis`
 
 ### 5. Claude (saya) = BUILDER + SENIOR ADVISOR yang berani debat
 - Saya cuma di-loop untuk:
