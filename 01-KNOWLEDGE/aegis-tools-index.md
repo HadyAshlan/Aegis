@@ -168,4 +168,4 @@ Path repo: `bot-worker/src/`
 - `lib/backup.js` — daily snapshot
 - `lib/briefings.js`, `lib/reflect.js`, `lib/anomaly.js`, `lib/self-update.js`
 
-Kalau ingin cek implementasi: buka via VS Code di `C:\Users\HP\Project Aegis\bot-worker\`.
+Kalau ingin cek implementasi: buka via VS Code di `C:\Users\HP\Workspace\Aegis\bot-worker\`.

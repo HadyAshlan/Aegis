@@ -13,8 +13,8 @@
 - Repo: `github.com/hadysuyono/Aegis` (private)
 - Deploy: **Cloudflare Workers** (FREE forever, NOT Railway)
 - Email infra: `asuyhung@gmail.com`
-- Vault local: `C:\Users\HP\Project Aegis\`
-- Project rules: `C:\Users\HP\Project Aegis\CLAUDE.md` (WAJIB baca dulu)
+- Vault local: `C:\Users\HP\Workspace\Aegis\`
+- Project rules: `C:\Users\HP\Workspace\Aegis\CLAUDE.md` (WAJIB baca dulu)
 
 ## 🏗️ Stack (semua FREE)
 
@@ -56,7 +56,7 @@ Telegram → Cloudflare Worker (autoSaveToInbox) → GitHub Aegis repo
 [Obsidian open]  → Obsidian Git plugin pull 5 menit (primary)
 [Obsidian close] → Task Scheduler PowerShell pull 2 menit (backup)
                                                        ↓
-Vault local C:\Users\HP\Project Aegis\
+Vault local C:\Users\HP\Workspace\Aegis\
 ```
 
 **Sync sebelumnya stuck 23 Jun** (Task Scheduler stop). FIX 29 Jun: install Obsidian Git plugin v2.38.5, reset hard ke origin/main, pull 172 commit yg ketinggalan.
@@ -92,7 +92,7 @@ Writing: `draft_document, long_form_write, rewrite, analyze_data`
 ## 📝 Convention untuk Claude (HEMAT TOKEN)
 
 **New chat Aegis:**
-1. Read `C:\Users\HP\Project Aegis\CLAUDE.md` (rules)
+1. Read `C:\Users\HP\Workspace\Aegis\CLAUDE.md` (rules)
 2. Read `STATE.md` ini (current state)
 3. Read `HISTORY.md` (recent changes)
 4. Gas — hemat 80%+ vs compact

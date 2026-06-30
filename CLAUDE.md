@@ -15,7 +15,7 @@ Mengelola 4 project: **reguler-fleet**, **bajaj-fleet**, **3sSmartSystem**, **Ca
 
 ## 🚨 CONSTRAINT WAJIB
 
-1. **Kerja HANYA di folder ini** (`C:\Users\HP\Project Aegis\`). Tidak menyentuh folder project lain dari sini.
+1. **Kerja HANYA di folder ini** (`C:\Users\HP\Workspace\Aegis\`). Tidak menyentuh folder project lain dari sini.
 2. **Aegis READ-ONLY** ke semua project. Tidak edit, tidak delete, tidak write ke DB project mana pun.
 3. **Mode super hemat token** — quota $20/bulan ketat. Jawaban ringkas, tool call minimum, tidak ada narasi proses.
 4. **Kill switch**: hapus file `07-SYSTEM/AEGIS-ENABLED.flag` → Aegis langsung off (skill cek file ini dulu).
@@ -229,7 +229,7 @@ Capital Sentinel (Railway, BOLEH bayar)
 ## 📋 Checklist Sebelum Edit Apa Pun di Folder Ini
 
 - [ ] Baca section relevan di CLAUDE.md ini dulu.
-- [ ] Jangan keluar dari `C:\Users\HP\Project Aegis\`.
+- [ ] Jangan keluar dari `C:\Users\HP\Workspace\Aegis\`.
 - [ ] Cek `07-SYSTEM/AEGIS-ENABLED.flag` ada atau tidak (kalau tidak ada = Aegis off, jangan jalan skill).
 - [ ] Untuk perubahan struktur → konfirmasi Hady dulu.
 - [ ] Audit sendiri sebelum lapor selesai.

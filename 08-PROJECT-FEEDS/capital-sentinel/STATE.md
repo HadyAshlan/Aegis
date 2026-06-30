@@ -8,9 +8,9 @@
 ## 🧠 SECOND BRAIN — BACA DULU TIAP NEW CHAT
 
 **Vault Hady (sumber kebenaran tunggal):**
-- `C:\Users\HP\Project Aegis\01-KNOWLEDGE\visi-obsidian-second-brain.md` — ⭐ VISI PRINSIP
-- `C:\Users\HP\Project Aegis\02-PROJECTS\capital-sentinel.md` — status, roadmap, decisions
-- `C:\Users\HP\Project Aegis\04-AEGIS-OUTPUTS\claude-sessions\CURRENT-FOCUS.md` — topik aktif
+- `C:\Users\HP\Workspace\Aegis\01-KNOWLEDGE\visi-obsidian-second-brain.md` — ⭐ VISI PRINSIP
+- `C:\Users\HP\Workspace\Aegis\02-PROJECTS\capital-sentinel.md` — status, roadmap, decisions
+- `C:\Users\HP\Workspace\Aegis\04-AEGIS-OUTPUTS\claude-sessions\CURRENT-FOCUS.md` — topik aktif
 
 **Visi terkait CS spesifik:** nantinya CS pakai vault sebagai second brain agar daily report bukan template kering tapi punya konteks historical ("sudah 2 hari di angka X, RSI konsisten 42-44"). Trigger eksekusi: winrate 60% + profit ≥ $20/bln (top-up Anthropic API).
 
@@ -26,8 +26,8 @@
 - Repo: `github.com/hadysuyono/Capital_Sentinel`
 - Deploy: **Railway** (NOT Cloudflare)
 - Email infra: `hadysuyono87@gmail.com`
-- Local: `C:\Users\HP\reguler-fleet`
-- Project rules: `C:\Users\HP\reguler-fleet\CLAUDE.md`
+- Local: `C:\Users\HP\Workspace\Reguler_Fleet`
+- Project rules: `C:\Users\HP\Workspace\Reguler_Fleet\CLAUDE.md`
 
 ## 🏷️ Versi LIVE
 
@@ -89,7 +89,7 @@ TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, DATA_DIR=/data
 ## 📝 Convention Claude (HEMAT TOKEN)
 
 **New chat Capital Sentinel:**
-1. Read `C:\Users\HP\reguler-fleet\CLAUDE.md`
+1. Read `C:\Users\HP\Workspace\Reguler_Fleet\CLAUDE.md`
 2. Read `STATE.md` (file ini)
 3. Read `HISTORY.md`
 4. Gas — context lengkap, hemat 80%+ vs compact

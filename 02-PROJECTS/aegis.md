@@ -24,7 +24,7 @@ Capital Sentinel + project lain
 
 - ✅ Aegis = **FREE selamanya** (beda dari Capital Sentinel yang boleh bayar)
 - ✅ **READ-ONLY** ke semua project (tidak edit DB project mana pun)
-- ✅ Kerja HANYA di folder `C:\Users\HP\Project Aegis\`
+- ✅ Kerja HANYA di folder `C:\Users\HP\Workspace\Aegis\`
 - ✅ Mode super hemat token
 
 ## 🏗️ Stack (semua FREE)
@@ -43,7 +43,7 @@ Vault sync      : Obsidian Git plugin (auto-pull 5m, push 10m)
 
 ## 📁 Lokasi
 
-- **Vault local:** `C:\Users\HP\Project Aegis\`
+- **Vault local:** `C:\Users\HP\Workspace\Aegis\`
 - **Repo:** `github.com/hadysuyono/Aegis` (private)
 - **Deploy:** Cloudflare Workers
 - **Email infra:** `asuyhung@gmail.com`

@@ -12,11 +12,11 @@ Aplikasi internal untuk karyawan kelola cashflow, setoran, pengeluaran, dan serv
 
 ## 🏗️ Stack & Lokasi
 
-- **Local:** `C:\Users\HP\reguler-fleet\`
+- **Local:** `C:\Users\HP\Workspace\Reguler_Fleet\`
 - **Frontend:** React (SPA, 1 file `src/App.jsx`)
 - **Backend:** Supabase (RLS disabled, anon key bisa write)
 - **Deploy:** Vercel (`vercel --prod`)
-- **Rules detail:** `C:\Users\HP\reguler-fleet\CLAUDE.md`
+- **Rules detail:** `C:\Users\HP\Workspace\Reguler_Fleet\CLAUDE.md`
 
 ## 🚨 Constraint
 
@@ -51,4 +51,4 @@ Aplikasi internal untuk karyawan kelola cashflow, setoran, pengeluaran, dan serv
 ## 🔗 Links
 
 - `08-PROJECT-FEEDS/reguler-fleet/` (laporan harian ke Aegis — masih kosong, belum ada feed)
-- Backup snapshot: `C:\Users\HP\reguler-fleet\backup\YYYYMMDD\`
+- Backup snapshot: `C:\Users\HP\Workspace\Reguler_Fleet\backup\YYYYMMDD\`

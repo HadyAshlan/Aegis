@@ -15,7 +15,7 @@ status: PRINSIP TETAP
 ## 🎯 Prinsip Inti (jangan dilanggar)
 
 ### 1. Obsidian = SUMBER KEBENARAN TUNGGAL
-- Semua memory, decision, fakta, riwayat → tersimpan di Obsidian vault (`C:\Users\HP\Project Aegis\`)
+- Semua memory, decision, fakta, riwayat → tersimpan di Obsidian vault (`C:\Users\HP\Workspace\Aegis\`)
 - Mirror permanen: GitHub `hadysuyono/Aegis`
 - Bukan database lain. Bukan localStorage. Bukan code hardcoded.
 

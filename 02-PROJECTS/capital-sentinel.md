@@ -17,8 +17,10 @@ Bot trading kripto yang kasih sinyal entry/exit + analisa multi-AI consensus. Tu
 - **Repo:** `github.com/hadysuyono/Capital_Sentinel`
 - **Deploy:** Railway (✅ BOLEH bayar — beda dari Aegis)
 - **Email infra:** `hadysuyono87@gmail.com`
-- **Local:** `C:\Users\HP\reguler-fleet` (sharing folder)
-- **Versi LIVE:** v10.31
+- **Local:** `C:\Users\HP\Workspace\Reguler_Fleet` (sharing folder)
+- **Versi LIVE:** v10.32 (Layer 2 Advisor)
+
+**Konvensi versi (Hady 1 Jul 2026):** Setiap update CS harus bump version di `config.py` (`VERSION = "vX.YY - <deskripsi singkat>"`). Versi tampil di startup log + boot message. Skip = boleh untuk fix typo tanpa logic change.
 - **Rules detail:** `08-PROJECT-FEEDS/capital-sentinel/STATE.md` + `HISTORY.md`
 
 ## 🤖 AI Stack Sekarang (semua FREE)
