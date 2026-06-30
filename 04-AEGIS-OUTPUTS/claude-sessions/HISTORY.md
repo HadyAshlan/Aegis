@@ -4,6 +4,51 @@
 
 ---
 
+## 2026-07-01 — Konsolidasi GitHub + Layer 2 CS LIVE
+
+**Achieved:**
+- **Konsolidasi 2 akun GitHub → 1 (`hadysuyono`)**: transfer `HadyAshlan/Aegis` → `hadysuyono/Aegis`. Worker Cloudflare GITHUB_OWNER updated, vault docs sed batch (6 files), local git remote updated. Verified via `/debug-grounding`.
+- **5 Obsidian plugins terinstall + configured**: Dataview, Templater, Tasks, Periodic Notes, Calendar. Plus `app.json` config optimal (link format, default folders, ignore filter).
+- **DASHBOARD.md live** dengan Dataview queries: jadwal (±14 hari), orang tercatat, proyek aktif, tasks open, inbox pending, health Aegis.
+- **Templates Templater**: daily-note + project-update di `05-RESOURCES/templates/`. Periodic Notes auto-generate daily note di `03-DAILY/`.
+- **Layer 2 CS LIVE** — hadysuyono/Capital_Sentinel commit `affe594`:
+  - `ai/agents/historical_memory_agent.py` (riset 2-3 hari)
+  - `ai/agents/vault_reader.py` (read-only Aegis vault via GitHub API)
+  - `formatter/historical/report.py` (template Telegram terpisah)
+  - `scheduler/jobs.py` hook 11 baris try/except di akhir `_run_report()`
+- Railway env aktif: `AEGIS_VAULT_TOKEN`, `ENABLE_HISTORICAL_AGENT=true`, `ENABLE_VAULT_READER=false` (fase 2).
+- Bot CS restart sukses, Layer 1 utuh.
+
+**Pengakuan kesalahan saya:**
+- 2x sok tahu propose feature/refactor yang ternyata SUDAH ADA di CS (50+ modules `analysis/`, `senior_advisor.py` 468 baris).
+- Hady tegur: "kayanya km blm paham semua struktur code CS yah."
+- Aturan baru permanen: WAJIB baca file existing sebelum kasih saran arsitektur.
+
+**Diskusi besar arsitektur Capital Sentinel (Hady 30 Jun 2026):**
+- **Layer 1**: bot existing UTUH (rumus + ensemble), JANGAN diganggu. "Rumus tidak bisa diganggu gugat. AI bisa dilusi."
+- **Layer 2** (terhubung hari ini): historical memory + vault reader, modular, TIDAK ubah signal Layer 1
+- **Layer 3** (pending top up): Claude direct (saya) sebagai Head Senior Advisor. Anak buah AI lapor ke saya → approve/reject → brief ke continuity_writer untuk narrative. Infra sudah ada di `senior_advisor.py` + `claude_provider.py` + `ai/router.py` — cuma flip env `AI_SENIOR=claude` + `CLAUDE_API_KEY=sk-ant-...`.
+
+**Hady frustration & root cause findings:**
+- Hady: HOLD sejak 15 Jun (2 minggu+), skor BUY selalu <50%, belum pernah rasakan TP1, swing trade gak masuk ensemble.
+- Root cause ensemble.py: threshold STRONG 75% match + 60% confidence → BUY trigger ≥35 → bot terlalu defensif.
+- Conflict between filosofi CS ("BUT BERANI insight") vs implementasi (defensif).
+- Honest opinion saya: CS sudah pintar by feature, tapi POSITIONING-nya analyst defensif. Bapak butuh advisor berani. Solusi bukan tambah feature — adjust DESIGN PHILOSOPHY.
+- **Belum di-tweak** — tunggu Bapak putuskan filosofis dulu.
+
+**Decisions:**
+- Hady pilih: build memory dulu (Layer 2), baru aktivasi otak (Layer 3 Claude).
+- Ensemble threshold adjustment: BELUM. Tunggu Bapak rasakan 1-2 minggu observasi dulu.
+- Swing trader vote di ensemble: BELUM. Diskusi lanjut nanti.
+- Trade journal vault: BELUM. Future task.
+
+**Pending (next session):**
+- Bapak top up Anthropic $5 + generate API key → saya set Railway env CLAUDE_API_KEY + AI_SENIOR=claude
+- Bapak observasi Layer 2 narrative quality 3-5 hari
+- Decide: tweak ensemble defensif filosofis OR keep observe
+
+---
+
 ## 2026-06-30 — Aegis Brain Rebuild (DATA-FIRST + Groq primary)
 
 **Konteks awal:**

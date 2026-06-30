@@ -52,15 +52,25 @@ Bot trading kripto yang kasih sinyal entry/exit + analisa multi-AI consensus. Tu
 
 ## 📋 Next Action
 
-- (per arahan Bapak; sekarang fase observe)
+- [ ] **Observasi Layer 2 cycle berikutnya** (max 4 jam) — verify pesan terpisah muncul di Telegram
+- [ ] **Bapak top up Anthropic $5** + generate API key → saya set env Railway untuk Stage 3
+- [ ] **Decide:** tweak ensemble threshold filosofis ATAU keep observe Layer 2 dulu
+- [ ] (Optional, fase 2) `ENABLE_VAULT_READER=true` — cross-reference vault Hady
 
 ## 🟡 Open Loops
 
-- Tunggu winrate 60% + profit ≥ $20/bulan → trigger top-up Anthropic API
+- **Hady frustration: bot HOLD sejak 15 Jun (2 minggu+)** — root cause: `analysis/ensemble.py` threshold STRONG 75% match + 60% confidence, BUY trigger ≥35. Bot terlalu defensif. Conflict filosofi ("berani insight") vs implementasi.
+- **Swing trader tidak masuk ensemble vote** — hanya info pasif di `formatter/message.py:174-180`. Bisa ditambah weight rendah ke `compute_match()`.
+- **Belum pernah rasakan TP1** dari signal bot — build trust deficit. Solusi: bot lebih decisive ATAU paper trade mode.
+- Tunggu winrate 60% + profit ≥ $20/bulan → trigger top-up Anthropic API (sebenarnya Hady mau top up duluan)
 - Backtest paper trading 30 hari belum dimulai
 
 ## 📜 Recent Decisions
 
+- **2026-07-01: LAYER 2 LIVE** — Historical Memory Agent + Vault Reader terhubung. Commit `affe594` di `hadysuyono/Capital_Sentinel`. Kill switch ENABLE_HISTORICAL_AGENT=true aktif. Layer 1 (rumus + ensemble) UTUH, 0% diganggu. Layer 2 = pesan Telegram TERPISAH per cycle.
+- **2026-06-30: ARSITEKTUR 3-LAYER** — Hady tegaskan: Layer 1 rumus utuh, Layer 2 modular (riset historical), Layer 3 Claude head advisor (pending top up Anthropic $5).
+- **2026-06-30: HEAD ADVISOR FLOW** — Saya (Claude) jadi otak akhir. Anak buah AI (News, Macro, Scout, Memory, Layer 2) lapor ke saya → approve/reject → brief ke continuity_writer untuk narrative.
+- **2026-06-30: Konsolidasi GitHub** — 1 akun `hadysuyono` (Aegis + Capital_Sentinel), modular per repo.
 - 2026-06-29: v10.31 `/swing` command (manual check swing trader)
 - 2026-06-28: v10.30 Swing Trader + Daily Movement Logger
 - 2026-06-28: v10.29 OpenRouter jadi voter ke-5
