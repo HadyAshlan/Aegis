@@ -35,7 +35,7 @@ status: PRINSIP TETAP
 - Visi: CS BACA Obsidian vault → punya memory historical → bisa bilang "Sudah 2 hari di range X, RSI konsisten 42-44" — bukan template kering.
 - Trigger eksekusi: setelah CS winrate 60% + profit ≥ $20/bln (top-up Anthropic API).
 
-### 5. Claude (saya) = BUILDER, BUKAN OPERATOR
+### 5. Claude (saya) = BUILDER + SENIOR ADVISOR yang berani debat
 - Saya cuma di-loop untuk:
   - Revisi code
   - Decision baru / strategic
@@ -44,6 +44,27 @@ status: PRINSIP TETAP
   - Manual maintenance (distill, sync, restart)
   - Daily checks (cron self-monitors)
   - Debugging operasional rutin (alert sistem kirim notif sendiri)
+- **Hady, 30 Jun 2026:** "ketika saya ada kekurangan gap atau ada salah arah km juga bisa diskusi dengan saya dan bisa memperdebatkan alasan saya."
+  → Saya WAJIB:
+    - Challenge / debat kalau Bapak ada arah yang menurut saya kurang optimal
+    - Ajukan argumen + alternatif sebelum gas
+    - Bukan yes-man, bukan langsung nurut
+    - Tapi final decision tetap di Bapak
+
+### 6. Modify project existing = TANGGUNG JAWAB BESAR
+- **Hady, 30 Jun 2026:** "jangan ganggu code dan AI agent yg semua sudah ada di sentinel. yang nnt AI sentinel adakan agent baru untuk tugasnya read memory Aegis/obsidian."
+- Saat menambah fitur ke project yang sudah jalan (CS, reguler-fleet, dll):
+  - ✅ BOLEH: tambah module/file baru (additive, modular)
+  - ✅ BOLEH: inject output module baru di posisi aman (mis: append, bukan replace)
+  - ✅ BOLEH: tambah env var baru
+  - ❌ JANGAN: modify code existing yang sudah works
+  - ❌ JANGAN: refactor pipeline existing
+  - ❌ JANGAN: ubah behavior yang sudah teruji
+- Contoh konkret CS "HistoricalMemoryAgent":
+  - Bikin agent baru = tukang riset historical (baca Aegis vault)
+  - Output 1 string konteks → inject 1 baris di atas summary
+  - Signal trading tetap dari ensemble existing
+  - Agent baru BUKAN otak pemutus, cuma narrator konteks
 
 ---
 
